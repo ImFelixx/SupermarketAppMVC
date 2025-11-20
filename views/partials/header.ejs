@@ -1,0 +1,58 @@
+<nav class="navbar navbar-expand-sm bg-dark navbar-dark">
+  <div class="container-fluid">
+
+    <!-- LOGO (Left Side) -->
+    <a class="navbar-brand" href="/">Supermarket App</a>
+
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- NAV LINKS -->
+    <div class="collapse navbar-collapse" id="collapsibleNavbar">
+      <ul class="navbar-nav ms-auto"> 
+        <% if (!user) { %>
+            <!-- NON-USER -->
+            <li class="nav-item">
+              <a class="nav-link" href="/register">Register</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/login">Login</a>
+            </li>
+
+        <% } else if (user.role === "user") { %>
+            <!-- NORMAL USER -->
+            <li class="nav-item">
+              <a class="nav-link" href="/orders/history">Order History</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/cart">View Cart</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/logout">Logout</a>
+            </li>
+
+        <% } else if (user.role === "admin") { %>
+            <!-- ADMIN -->
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/users">Users</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/inventory">Products</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/orders">Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/admin/order-items">Order Items</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/logout">Logout</a>
+            </li>
+
+        <% } %>
+      </ul>
+    </div>
+
+  </div>
+</nav>

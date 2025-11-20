@@ -40,6 +40,12 @@ app.use(session({
 
 app.use(flash());
 
+// Make user available in all EJS views (for navbar)
+app.use((req, res, next) => {
+    res.locals.user = req.session.user || null;
+    next();
+});
+
 // Middleware to check if user is logged in
 const checkAuthenticated = (req, res, next) => {
     if (req.session.user) {
