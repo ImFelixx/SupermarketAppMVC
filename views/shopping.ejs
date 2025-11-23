@@ -42,6 +42,18 @@
           <%= errors[0] %>
         </div>
       <% } %>
+    
+      <div class="row mb-3">
+        <div class="col-md-6 mx-auto">
+            <input 
+                type="text" 
+                id="productSearch" 
+                class="form-control form-control-lg" 
+                placeholder="🔍 Search products by name..."
+                onkeyup="filterProducts()"
+            >
+        </div>
+      </div>
 
       <table class="table table-hover text-center align-middle mt-4">
           <thead class="table-dark">
@@ -235,6 +247,21 @@
 function toggleMiniCart() {
     const popup = document.getElementById("mini-cart-popup");
     popup.style.display = popup.style.display === "block" ? "none" : "block";
+}
+
+function filterProducts() {
+    const input = document.getElementById("productSearch").value.toLowerCase();
+    const rows = document.querySelectorAll("table tbody tr");
+
+    rows.forEach(row => {
+        const productName = row.querySelector("td a").innerText.toLowerCase();
+
+        if (productName.includes(input)) {
+            row.style.display = "";
+        } else {
+            row.style.display = "none";
+        }
+    });
 }
 </script>
 

@@ -79,6 +79,15 @@ const validateRegistration = (req, res, next) => {
 // -------------------- CONTROLLERS --------------------
 const supermarketController = require("./controller/supermarketController");
 const orderController = require("./controller/orderController");
+const userController = require("./controller/userController");
+const dashboardController = require("./controller/dashboardController");
+
+// -------------------- HEADER --------------------
+
+app.use((req, res, next) => {
+    res.locals.currentPath = req.path;
+    next();
+});
 
 // -------------------- ROUTES --------------------
 
@@ -308,6 +317,16 @@ app.post("/place-order", checkAuthenticated, orderController.placeOrder);
 app.get("/orders", checkAuthenticated, orderController.viewUserOrders);
 app.get("/orders/:id", checkAuthenticated, orderController.viewOrderDetails);
 app.get("/orderhistory", checkAuthenticated, orderController.viewUserOrders);
+
+// -------------------- USER PROFILE --------------------
+app.get("/profile", checkAuthenticated, userController.viewProfile);
+app.post("/profile/update", checkAuthenticated, userController.updateProfile);
+
+// -------------------- CHANGE PASSWORD --------------------
+app.get("/password", checkAuthenticated, userController.viewPasswordPage);
+app.post("/change-password", checkAuthenticated, userController.updatePassword);
+
+app.get("/dashboard", checkAuthenticated, dashboardController.viewDashboard);
 
 // -------------------- START SERVER --------------------
 const PORT = process.env.PORT || 3000;

@@ -23,13 +23,15 @@
         <% } else if (user.role === "user") { %>
             <!-- NORMAL USER -->
             <li class="nav-item">
-              <a class="nav-link" href="/shopping">Shopping</a>
+              <a class="nav-link <%= currentPath === '/shopping' ? 'active' : '' %>" href="/shopping">Shopping</a>
             </li>
+
             <li class="nav-item">
-              <a class="nav-link" href="/orderhistory">Order History</a>
+              <a class="nav-link <%= currentPath === '/orderhistory' ? 'active' : '' %>" href="/orderhistory">Order History</a>
             </li>
+
             <li class="nav-item">
-              <a class="nav-link position-relative" href="/cart">
+              <a class="nav-link position-relative <%= currentPath === '/cart' ? 'active' : '' %>" href="/cart">
                   View Cart
                   <% if (cartCount > 0) { %>
                       <span class="badge bg-danger position-absolute top-0 start-100 translate-middle">
@@ -37,8 +39,16 @@
                       </span>
                   <% } %>
               </a>
-          </li>
+            </li>
 
+            <li class="nav-item">
+              <a class="nav-link <%= currentPath === '/profile' ? 'active' : '' %>" href="/profile">Profile</a>
+            </li>
+
+            <li class="nav-item">
+              <a class="nav-link <%= currentPath === '/dashboard' ? 'active' : '' %>" href="/dashboard">Dashboard</a>
+            </li>
+            
             <li class="nav-item">
               <a class="nav-link" href="/logout">Logout</a>
             </li>
