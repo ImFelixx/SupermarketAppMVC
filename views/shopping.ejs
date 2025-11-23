@@ -5,81 +5,238 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <title>Supermarket App</title>
+  <title>Shopping | Supermarket App</title>
+
+  <style>
+      .qty-box {
+          width: 80px;
+          margin: auto;
+      }
+      img.product-img {
+          width: 80px;
+          height: 80px;
+          object-fit: cover;
+          border-radius: 8px;
+      }
+  </style>
 </head>
+
 <body>
-    <nav class="navbar navbar-expand-sm bg-dark navbar-dark">
-      <div class="container-fluid">
-        <a class="navbar-brand" href="/">Supermarket App</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <div class="collapse navbar-collapse" id="collapsibleNavbar">
-          <ul class="navbar-nav">
-            <li class="nav-item">
-              <a class="nav-link" href="/cart">View Cart</a>
-            </li> 
-            <li class="nav-item">
-              <a class="nav-link" href="/logout">Logout</a>
-            </li> 
-          </ul>
+
+  <!-- Header -->
+  <%- include("partials/header") %>
+
+  <div class="container mt-4">
+
+      <h2 class="text-center mb-3">🛒 Products from Supermarket</h2>
+      <p class="text-center">Welcome, <strong><%= user.username %></strong></p>
+
+      <% if (messages && messages.length > 0) { %>
+        <div class="alert alert-success text-center">
+          <%= messages[0] %>
         </div>
-      </div>
-    </nav>
+      <% } %>
 
-  <div class="container">
-    <p>Welcome, <%= user.username %> (<%= user.role %>)</p>
-    <br>
-    <div class="text-center"><h2>Products from Supermarket</h2></div>
-    <br>
-    <table class="table table-hover small text-center">
-      <thead>
-          <tr>
-            <th width="100">Product Name</th>
-            <th width="100">Product Image</th>
-            <th width="50">Quantity</th>
-            <th width="50">Price</th>
-            <th width="50">Quantity</th>
-            <th width="50">Buy</th>
-          </tr>
-      </thead>
-      <tbody>
-        <% for(let i=0; i < products.length; i++) { %>
-          <tr>
-            <td><a href="/product/<%= products[i].id %>" ><%= products[i].productName %></a></td>
-            <td><img src = "images/<%= products[i].image %>" width="20%"></td>
-            <td><%= products[i].quantity %></td>
-            <td>$<%= products[i].price.toFixed(2) %></td>
-            <!-- <td>
-              <select id="role" name="role" class="form-control" >
-                <option value="1" selected >1</option>
-                <option value="2" >2</option>
-                <option value="3" >3</option>
-                <option value="4" >4</option>
-                <option value="5" >5</option>
-              </select>
-            </td> -->
-            <!-- Buy Link -->
-            <!-- <td><a href="/buyProduct/<%#= products[i].id %>" class="btn btn-primary mt-3">Buy</a></td> -->
-            <td>
-              <select class="form-control" onchange="document.getElementById('quantity-<%= products[i].id %>').value = this.value">
-                <% for (let q = 1; q <= 5; q++) { %>
-                  <option value="<%= q %>"><%= q %></option>
-                <% } %>
-              </select>
-            </td>
+      <% if (errors && errors.length > 0) { %>
+        <div class="alert alert-danger text-center">
+          <%= errors[0] %>
+        </div>
+      <% } %>
 
-            <td>
-                <form action="/add-to-cart/<%= products[i].id %>" method="POST">
-                  <input type="hidden" name="quantity" id="quantity-<%= products[i].id %>" value="1">
-                  <button type="submit" class="btn btn-primary mt-3">Buy</button>
-                </form>
-            </td>
+      <table class="table table-hover text-center align-middle mt-4">
+          <thead class="table-dark">
+              <tr>
+                  <th>Product</th>
+                  <th>Image</th>
+                  <th>In Stock</th>
+                  <th>Price</th>
+                  <th>Quantity</th>
+                  <th>Add</th>
+              </tr>
+          </thead>
 
-          </tr>
-        <% } %>
-      </tbody>
-    </table>
+          <tbody>
+              <% products.forEach(product => { %>
+              <tr>
+                  <td>
+                      <a href="/product/<%= product.id %>" class="text-decoration-none">
+                          <%= product.productName %>
+                      </a>
+                  </td>
+
+                  <td>
+                      <img src="/images/<%= product.image %>" class="product-img">
+                  </td>
+
+                  <td><%= product.quantity %></td>
+
+                  <td>$<%= product.price.toFixed(2) %></td>
+
+                  <td>
+                      <% if (product.quantity > 0) { %>
+                          <input 
+                              type="number"
+                              min="1"
+                              max="<%= product.quantity %>"
+                              value="1"
+                              id="qty-<%= product.id %>"
+                              class="form-control qty-box"
+                              oninput="syncQty('<%= product.id %>')"
+                          >
+                      <% } else { %>
+                          <span class="text-danger">Out of stock</span>
+                      <% } %>
+                  </td>
+
+                  <td>
+                      <% if (product.quantity > 0) { %>
+                          <form action="/add-to-cart/<%= product.id %>" method="POST">
+                              <input type="hidden" id="hidden-qty-<%= product.id %>" name="quantity" value="1">
+                              <button type="submit" class="btn btn-success">Add to Cart</button>
+                          </form>
+                      <% } else { %>
+                          <button class="btn btn-secondary" disabled>Unavailable</button>
+                      <% } %>
+                  </td>
+              </tr>
+              <% }) %>
+          </tbody>
+      </table>
+
   </div>
+
+  <!-- Footer -->
+  <%- include("partials/footer") %>
+
+  <script>
+      function syncQty(id) {
+          const input = document.getElementById("qty-" + id);
+          const hidden = document.getElementById("hidden-qty-" + id);
+
+          let value = parseInt(input.value);
+          const min = parseInt(input.min) || 1;
+          const max = parseInt(input.max) || min;
+
+          if (isNaN(value) || value < min) value = min;
+          if (value > max) value = max;
+
+          input.value = value;
+          hidden.value = value;
+      }
+  </script>
+
+<!-- Floating Cart Button -->
+<div id="floating-cart-btn" onclick="toggleMiniCart()">
+    🛒
+    <% if (cartCount > 0) { %>
+        <span class="badge bg-danger cart-badge"><%= cartCount %></span>
+    <% } %>
+</div>
+
+<!-- Mini Cart Popup -->
+<!-- Mini Cart Popup -->
+<div id="mini-cart-popup">
+    <h5>Your Cart</h5>
+    <hr>
+
+    <% if (cartCount === 0) { %>
+        <p class="text-center">Your cart is empty.</p>
+    <% } else { %>
+
+        <% let miniTotal = 0; %>
+
+        <% cart.forEach(item => { %>
+            <div class="mini-item">
+                <img src="/images/<%= item.image %>" class="mini-img">
+
+                <div class="flex-grow-1">
+                    <strong><%= item.productName %></strong><br>
+                    Qty: <%= item.quantity %> × $<%= item.price.toFixed(2) %>
+                </div>
+
+                <!-- DELETE BUTTON -->
+                <form action="/remove-from-cart/<%= item.id %>" method="POST" 
+                      onsubmit="return confirm('Do you want to remove this item from your cart?');">
+                    <button class="delete-btn">❌</button>
+                </form>
+            </div>
+
+            <% miniTotal += item.price * item.quantity; %>
+        <% }) %>
+
+        <hr>
+        <p><strong>Total: $<%= miniTotal.toFixed(2) %></strong></p>
+        <a href="/cart" class="btn btn-primary w-100">Go to Cart</a>
+    <% } %>
+</div>
+
+<style>
+.delete-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #d9534f;
+}
+
+.delete-btn:hover {
+    color: #b52b27;
+}
+
+#floating-cart-btn {
+    position: fixed;
+    bottom: 25px;
+    right: 25px;
+    background: #28a745;
+    color: white;
+    font-size: 28px;
+    padding: 15px 18px;
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 9999;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.cart-badge {
+    font-size: 14px;
+    padding: 3px 6px;
+    position: absolute;
+    top: -5px;
+    right: -10px;
+}
+
+#mini-cart-popup {
+    position: fixed;
+    bottom: 90px;
+    right: 25px;
+    width: 260px;
+    background: white;
+    border-radius: 10px;
+    padding: 15px;
+    display: none;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+.mini-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.mini-img {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+</style>
+
+<script>
+function toggleMiniCart() {
+    const popup = document.getElementById("mini-cart-popup");
+    popup.style.display = popup.style.display === "block" ? "none" : "block";
+}
+</script>
+
 </body>
 </html>

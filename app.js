@@ -1,202 +1,314 @@
 const express = require('express');
-// const mysql = require('mysql2');
 const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
 const connection = require('./db');
 const app = express();
+const Product = require('./models/supermarket');
 
-// Set up multer for file uploads
+// -------------------- MULTER (IMAGE UPLOAD) --------------------
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, 'public/images'); // Directory to save uploaded files
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname); 
-    }
+    destination: (req, file, cb) => cb(null, 'public/images'),
+    filename: (req, file, cb) => cb(null, file.originalname)
 });
+const upload = multer({ storage });
 
-const upload = multer({ storage: storage });
-
-// Database connection moved into model (MVC). app.js no longer creates a direct connection here.
-
-// Set up view engine
+// -------------------- EXPRESS SETUP --------------------
 app.set('view engine', 'ejs');
-//  enable static files
 app.use(express.static('public'));
-// enable form processing
-app.use(express.urlencoded({
-    extended: false
-}));
+app.use(express.urlencoded({ extended: false }));
 
-//TO DO: Insert code for Session Middleware below 
-app.use(session({
-    secret: 'secret',
-    resave: false,
-    saveUninitialized: true,
-    // Session expires after 1 week of inactivity
-    cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 } 
-}));
+// -------------------- SESSION --------------------
+app.use(
+    session({
+        secret: 'secret',
+        resave: false,
+        saveUninitialized: true,
+        cookie: { maxAge: 1000 * 60 * 60 * 24 * 7 }
+    })
+);
 
 app.use(flash());
 
-// Make user available in all EJS views (for navbar)
+// -------------------- GLOBAL USER --------------------
 app.use((req, res, next) => {
     res.locals.user = req.session.user || null;
     next();
 });
 
-// Middleware to check if user is logged in
+// -------------------- GLOBAL CART + CART COUNT --------------------
+app.use((req, res, next) => {
+    res.locals.cart = req.session.cart || [];
+
+    res.locals.cartCount = req.session.cart
+        ? req.session.cart.reduce((sum, item) => sum + item.quantity, 0)
+        : 0;
+
+    next();
+});
+
+// -------------------- AUTH MIDDLEWARE --------------------
 const checkAuthenticated = (req, res, next) => {
-    if (req.session.user) {
-        return next();
-    } else {
-        req.flash('error', 'Please log in to view this resource');
-        res.redirect('/login');
-    }
+    if (req.session.user) return next();
+    req.flash('error', 'Please log in to view this page.');
+    res.redirect('/login');
 };
 
-// Middleware to check if user is admin
 const checkAdmin = (req, res, next) => {
-    if (req.session.user.role === 'admin') {
-        return next();
-    } else {
-        req.flash('error', 'Access denied');
-        res.redirect('/shopping');
-    }
+    if (req.session.user.role === 'admin') return next();
+    req.flash('error', 'Access denied.');
+    res.redirect('/shopping');
 };
 
-// Middleware for form validation
+// -------------------- VALIDATION --------------------
 const validateRegistration = (req, res, next) => {
     const { username, email, password, address, contact, role } = req.body;
 
     if (!username || !email || !password || !address || !contact || !role) {
-        return res.status(400).send('All fields are required.');
+        return res.status(400).send("All fields are required.");
     }
-    
+
     if (password.length < 6) {
-        req.flash('error', 'Password should be at least 6 or more characters long');
-        req.flash('formData', req.body);
-        return res.redirect('/register');
+        req.flash("error", "Password must be at least 6 characters.");
+        req.flash("formData", req.body);
+        return res.redirect("/register");
     }
     next();
 };
 
-// Define routes
-const supermarketController = require('./controller/supermarketController');
+// -------------------- CONTROLLERS --------------------
+const supermarketController = require("./controller/supermarketController");
+const orderController = require("./controller/orderController");
 
-app.get('/', (req, res) => {
-    res.render('index', { user: req.session.user });
+// -------------------- ROUTES --------------------
+
+// Home
+app.get("/", (req, res) => {
+    res.render("index", { user: req.session.user });
 });
 
-app.get('/inventory', checkAuthenticated, checkAdmin, supermarketController.listInventory);
+// Inventory (Admin)
+app.get("/inventory", checkAuthenticated, checkAdmin, supermarketController.listInventory);
 
-app.get('/register', (req, res) => {
-    res.render('register', { messages: req.flash('error'), formData: req.flash('formData')[0] });
+// Register
+app.get("/register", (req, res) => {
+    res.render("register", { 
+        messages: req.flash("error"), 
+        formData: req.flash("formData")[0] 
+    });
 });
 
-app.post('/register', validateRegistration, (req, res) => {
-
+app.post("/register", validateRegistration, (req, res) => {
     const { username, email, password, address, contact, role } = req.body;
 
-    const sql = 'INSERT INTO users (username, email, password, address, contact, role) VALUES (?, ?, SHA1(?), ?, ?, ?)';
-    connection.query(sql, [username, email, password, address, contact, role], (err, result) => {
-        if (err) {
-            throw err;
-        }
-        console.log(result);
-        req.flash('success', 'Registration successful! Please log in.');
-        res.redirect('/login');
-    });
-});
-
-app.get('/login', (req, res) => {
-    res.render('login', { messages: req.flash('success'), errors: req.flash('error') });
-});
-
-app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-
-    // Validate email and password
-    if (!email || !password) {
-        req.flash('error', 'All fields are required.');
-        return res.redirect('/login');
-    }
-
-    const sql = 'SELECT * FROM users WHERE email = ? AND password = SHA1(?)';
-    connection.query(sql, [email, password], (err, results) => {
-        if (err) {
-            throw err;
-        }
+    // 1️⃣ CHECK IF EMAIL ALREADY EXISTS
+    const checkEmailSql = "SELECT * FROM users WHERE email = ?";
+    connection.query(checkEmailSql, [email], (err, results) => {
+        if (err) throw err;
 
         if (results.length > 0) {
-            // Successful login
-            req.session.user = results[0]; 
-            req.flash('success', 'Login successful!');
-            if(req.session.user.role == 'user')
-                res.redirect('/shopping');
-            else
-                res.redirect('/inventory');
-        } else {
-            // Invalid credentials
-            req.flash('error', 'Invalid email or password.');
-            res.redirect('/login');
+            req.flash("error", "Email already exists, please login.");
+            req.flash("formData", req.body);
+            return res.redirect("/register");
         }
+
+        // 2️⃣ OTHERWISE PROCEED TO REGISTER
+        const insertSql = `
+            INSERT INTO users (username, email, password, address, contact, role)
+            VALUES (?, ?, SHA1(?), ?, ?, ?)
+        `;
+
+        connection.query(
+            insertSql,
+            [username, email, password, address, contact, role],
+            (err2) => {
+                if (err2) throw err2;
+
+                req.flash("success", "Registration successful! Please log in.");
+                res.redirect("/login");
+            }
+        );
     });
 });
 
-app.get('/shopping', checkAuthenticated, supermarketController.listShopping);
+// Login
+app.get("/login", (req, res) => {
+    res.render("login", {
+        messages: req.flash("success"),
+        errors: req.flash("error")
+    });
+});
 
-const Product = require('./models/supermarket');
+app.post("/login", (req, res) => {
+    const { email, password } = req.body;
 
-app.post('/add-to-cart/:id', checkAuthenticated, (req, res) => {
-    const productId = parseInt(req.params.id, 10);
-    const quantity = parseInt(req.body.quantity, 10) || 1;
+    if (!email || !password) {
+        req.flash("error", "All fields are required.");
+        return res.redirect("/login");
+    }
+
+    // 1️⃣ CHECK IF EMAIL EXISTS
+    const findEmailSql = "SELECT * FROM users WHERE email = ?";
+    connection.query(findEmailSql, [email], (err, results) => {
+        if (err) throw err;
+
+        if (results.length === 0) {
+            req.flash("error", "Email doesn't exist, please sign up.");
+            return res.redirect("/login");
+        }
+
+        // 2️⃣ EMAIL EXISTS → CHECK PASSWORD
+        const user = results[0];
+        const checkPwSql = `
+            SELECT * FROM users WHERE email = ? AND password = SHA1(?)
+        `;
+
+        connection.query(checkPwSql, [email, password], (err2, pwMatch) => {
+            if (err2) throw err2;
+
+            if (pwMatch.length === 0) {
+                req.flash("error", "Incorrect password.");
+                return res.redirect("/login");
+            }
+
+            // 3️⃣ SUCCESS → LOGIN USER
+            req.session.user = pwMatch[0];
+            req.flash("success", "Login successful!");
+
+            return req.session.user.role === "user"
+                ? res.redirect("/shopping")
+                : res.redirect("/inventory");
+        });
+    });
+});
+
+// Shopping Page
+app.get("/shopping", checkAuthenticated, (req, res) => {
+    Product.getAllProducts((err, products) => {
+        res.render("shopping", {
+            products,
+            user: req.session.user,
+            messages: req.flash("success"),
+            errors: req.flash("error")
+        });
+    });
+});
+
+// Add to Cart
+app.post("/add-to-cart/:id", checkAuthenticated, (req, res) => {
+    const productId = Number(req.params.id);
+    const quantity = Number(req.body.quantity);
 
     Product.getProductById(productId, (err, product) => {
-        if (err) {
-            console.error('Error fetching product for cart:', err);
-            return res.status(500).send('Error adding to cart');
+        if (!product) {
+            req.flash("error", "Item not found.");
+            return res.redirect("/shopping");
         }
-        if (!product) return res.status(404).send('Product not found');
+
+        if (quantity > product.quantity) {
+            req.flash("error", `Only ${product.quantity} left in stock.`);
+            return res.redirect("/shopping");
+        }
 
         if (!req.session.cart) req.session.cart = [];
 
-        const existingItem = req.session.cart.find(item => item.productId === productId);
-        if (existingItem) {
-            existingItem.quantity += quantity;
+        const existing = req.session.cart.find(p => p.id === product.id);
+
+        if (existing) {
+            if (existing.quantity + quantity > product.quantity) {
+                req.flash("error", `Cannot exceed stock quantity (${product.quantity}).`);
+                return res.redirect("/shopping");
+            }
+
+            existing.quantity += quantity;
+            existing.stock = product.quantity;   // keep stock updated
+
         } else {
             req.session.cart.push({
-                id: product.productId,
+                id: product.id,
                 productName: product.productName,
                 price: product.price,
-                quantity: quantity,
-                image: product.image
+                quantity,
+                image: product.image,
+                stock: product.quantity  // ⭐ add stock info
             });
         }
-        return res.redirect('/cart');
+
+        req.flash("success", `Added ${quantity} × ${product.productName} to cart`);
+        res.redirect("/shopping");
     });
 });
 
-app.get('/cart', checkAuthenticated, (req, res) => {
+app.post("/remove-from-cart/:index", checkAuthenticated, (req, res) => {
+    const index = parseInt(req.params.index, 10);
+
+    if (req.session.cart[index]) {
+        req.session.cart.splice(index, 1);
+    }
+
+    res.redirect('/cart');
+});
+
+app.post("/update-cart/:index", checkAuthenticated, (req, res) => {
+    const index = parseInt(req.params.index, 10);
+    let qty = parseInt(req.body.quantity, 10);
+
+    if (!req.session.cart[index]) return res.redirect("/cart");
+
+    const item = req.session.cart[index];
+
+    // Fetch product from DB to compare stock
+    Product.getProductById(item.id, (err, product) => {
+        if (err || !product) return res.redirect("/cart");
+
+        if (qty < 1) qty = 1;
+
+        // ❗ Prevent exceeding stock
+        if (qty > product.quantity) {
+            req.flash("error", `Only ${product.quantity} left in stock.`);
+            return res.redirect("/cart");
+        }
+
+        req.session.cart[index].quantity = qty;
+        req.flash("success", "Quantity updated!");
+        res.redirect("/cart");
+    });
+});
+
+// Cart
+app.get("/cart", checkAuthenticated, (req, res) => {
     const cart = req.session.cart || [];
-    res.render('cart', { cart, user: req.session.user });
+    res.render("cart", {
+        cart,
+        user: req.session.user
+    });
 });
 
-app.get('/logout', (req, res) => {
+// Logout
+app.get("/logout", (req, res) => {
     req.session.destroy();
-    res.redirect('/');
+    res.redirect("/");
 });
 
-app.get('/product/:id', checkAuthenticated, supermarketController.viewProduct);
+// Product Page
+app.get("/product/:id", checkAuthenticated, supermarketController.viewProduct);
 
-app.get('/addProduct', checkAuthenticated, checkAdmin, supermarketController.showAddProduct);
-app.post('/addProduct', checkAuthenticated, checkAdmin, upload.single('image'), supermarketController.addProduct);
+// Admin Product CRUD
+app.get("/addProduct", checkAuthenticated, checkAdmin, supermarketController.showAddProduct);
+app.post("/addProduct", checkAuthenticated, checkAdmin, upload.single("image"), supermarketController.addProduct);
 
-app.get('/updateProduct/:id', checkAuthenticated, checkAdmin, supermarketController.showUpdateProduct);
-app.post('/updateProduct/:id', checkAuthenticated, checkAdmin, upload.single('image'), supermarketController.updateProduct);
+app.get("/updateProduct/:id", checkAuthenticated, checkAdmin, supermarketController.showUpdateProduct);
+app.post("/updateProduct/:id", checkAuthenticated, checkAdmin, upload.single("image"), supermarketController.updateProduct);
 
-app.get('/deleteProduct/:id', checkAuthenticated, checkAdmin, supermarketController.deleteProduct);
+app.get("/deleteProduct/:id", checkAuthenticated, checkAdmin, supermarketController.deleteProduct);
 
+// Orders
+app.get("/checkout", checkAuthenticated, orderController.checkoutPage);
+app.post("/place-order", checkAuthenticated, orderController.placeOrder);
+app.get("/orders", checkAuthenticated, orderController.viewUserOrders);
+app.get("/orders/:id", checkAuthenticated, orderController.viewOrderDetails);
+app.get("/orderhistory", checkAuthenticated, orderController.viewUserOrders);
+
+// -------------------- START SERVER --------------------
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
