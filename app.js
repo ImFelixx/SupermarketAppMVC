@@ -81,6 +81,9 @@ const supermarketController = require("./controller/supermarketController");
 const orderController = require("./controller/orderController");
 const userController = require("./controller/userController");
 const dashboardController = require("./controller/dashboardController");
+const adminOrderController = require("./controller/adminOrderController");
+const adminUserController = require("./controller/adminUserController");
+const adminDashboardController = require("./controller/adminDashboardController");
 
 // -------------------- HEADER --------------------
 
@@ -327,6 +330,26 @@ app.get("/password", checkAuthenticated, userController.viewPasswordPage);
 app.post("/change-password", checkAuthenticated, userController.updatePassword);
 
 app.get("/dashboard", checkAuthenticated, dashboardController.viewDashboard);
+
+// -------------------- ADMIN - ORDERS --------------------
+app.get("/admin/orders", checkAuthenticated, checkAdmin, adminOrderController.viewAllOrders);
+
+// View single order
+app.get("/admin/orders/:id", checkAuthenticated, checkAdmin, adminOrderController.viewOrderPage);
+
+// Edit order
+app.get("/admin/orders/edit/:id", checkAuthenticated, checkAdmin, adminOrderController.editOrderPage);
+app.post("/admin/orders/edit/:id", checkAuthenticated, checkAdmin, adminOrderController.updateOrder);
+
+// -------------------- ADMIN - USERS --------------------
+app.get("/admin/users", checkAuthenticated, checkAdmin, adminUserController.viewAllUsers);
+app.get("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.addUserPage);
+app.post("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.addUser);
+app.get("/admin/users/edit/:id", checkAuthenticated, checkAdmin, adminUserController.editUserPage);
+app.post("/admin/users/edit/:id", checkAuthenticated, checkAdmin, adminUserController.updateUser);
+
+// ----------------- ADMIN DASHBOARD -----------------
+app.get("/admin/dashboard", checkAuthenticated, checkAdmin, adminDashboardController.viewDashboard);
 
 // -------------------- START SERVER --------------------
 const PORT = process.env.PORT || 3000;

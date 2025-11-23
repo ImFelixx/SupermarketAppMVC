@@ -92,6 +92,11 @@ const userController = {
             return res.redirect("/password");
         }
 
+        if (new_password.length < 6) {
+            req.flash("error", "New password must be at least 6 characters.");
+            return res.redirect("/password");
+        }
+
         // Hash helper function
         const hash = (pw) => crypto.createHash("sha1").update(pw).digest("hex");
 

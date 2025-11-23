@@ -56,16 +56,16 @@
         <% } else if (user.role === "admin") { %>
             <!-- ADMIN -->
             <li class="nav-item">
-              <a class="nav-link" href="/admin/users">Users</a>
+              <a class="nav-link <%= currentPath === '/inventory' ? 'active' : '' %>" href="/inventory">Inventory</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/inventory">Products</a>
+              <a class="nav-link <%= currentPath === '/admin/orders' ? 'active' : '' %>" href="/admin/orders">Orders</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/admin/orders">Orders</a>
+              <a class="nav-link <%= currentPath === '/admin/users' ? 'active' : '' %>" href="/admin/users">Users</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link" href="/admin/order-items">Order Items</a>
+              <a class="nav-link <%= currentPath === '/admin/dashboard' ? 'active' : '' %>" href="/admin/dashboard">Dashboard</a>
             </li>
             <li class="nav-item">
               <a class="nav-link" href="/logout">Logout</a>
