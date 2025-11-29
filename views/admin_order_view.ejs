@@ -27,6 +27,7 @@
         <p><strong>Total:</strong> $<%= Number(order.total).toFixed(2) %></p>
 
         <a href="/admin/orders/edit/<%= order.id %>" class="btn btn-primary mt-2">Edit Order</a>
+        <a href="/admin/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary mt-2 ms-2">Download Invoice (PDF)</a>
         <a href="/admin/orders" class="btn btn-secondary mt-2">Back</a>
     </div>
 

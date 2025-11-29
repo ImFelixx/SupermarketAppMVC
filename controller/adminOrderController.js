@@ -1,4 +1,5 @@
 const connection = require("../db");
+const { generateInvoicePDF } = require("../utils/invoiceGenerator");
 
 const adminOrderController = {
 
@@ -97,6 +98,46 @@ const adminOrderController = {
                     res.redirect(`/admin/orders/${orderId}`);
                 }
             );
+        });
+    },
+
+    downloadInvoice(req, res) {
+        const orderId = req.params.id;
+
+        const orderSQL = `
+            SELECT o.*, u.username, u.email
+            FROM orders o
+            JOIN users u ON o.user_id = u.id
+            WHERE o.id = ?
+        `;
+
+        const itemsSQL = `
+            SELECT oi.*, p.productName
+            FROM order_items oi
+            JOIN products p ON oi.product_id = p.id
+            WHERE oi.order_id = ?
+        `;
+
+        connection.query(orderSQL, [orderId], (err, orderResult) => {
+            if (err) throw err;
+            const order = orderResult[0];
+
+            if (!order) {
+                return res.status(404).send("Order not found.");
+            }
+
+            connection.query(itemsSQL, [orderId], (err2, items) => {
+                if (err2) throw err2;
+
+                generateInvoicePDF(res, {
+                    order,
+                    items,
+                    customer: {
+                        name: order.username,
+                        email: order.email
+                    }
+                });
+            });
         });
     }
 

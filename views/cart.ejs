@@ -56,7 +56,7 @@
         <tbody>
           <% let total = 0; %>
 
-          <% cart.forEach((item, index) => { %>
+          <% cart.forEach((item) => { %>
             <tr>
               <td><%= item.productName %></td>
 
@@ -66,7 +66,7 @@
 
               <!-- Editable Quantity -->
               <td>
-                <form action="/update-cart/<%= index %>" method="POST" class="d-flex justify-content-center">
+                <form action="/update-cart/<%= item.id %>" method="POST" class="d-flex justify-content-center">
                   <input 
                     type="number"
                     name="quantity"
@@ -85,7 +85,7 @@
               <td>$<%= (item.price * item.quantity).toFixed(2) %></td>
 
               <td>
-                <form action="/remove-from-cart/<%= index %>" method="POST" onsubmit="return confirm('Remove this item?')">
+                <form action="/remove-from-cart/<%= item.id %>" method="POST" onsubmit="return confirm('Remove this item?')">
                   <button class="btn btn-danger btn-sm">✖</button>
                 </form>
               </td>

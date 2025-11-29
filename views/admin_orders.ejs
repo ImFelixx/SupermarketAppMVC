@@ -51,7 +51,7 @@
                     <th>Total</th>
                     <th>Delivery Fee</th>
                     <th>Date</th>
-                    <th width="120">Actions</th>
+                    <th width="170">Actions</th>
                 </tr>
             </thead>
 
@@ -72,6 +72,7 @@
                         <div class="d-flex justify-content-center gap-2">
                             <a href="/admin/orders/<%= order.id %>" class="btn btn-primary btn-sm">View</a>
                             <a href="/admin/orders/edit/<%= order.id %>" class="btn btn-warning btn-sm">Edit</a>
+                            <a href="/admin/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary btn-sm">PDF</a>
                         </div>
                     </td>
 

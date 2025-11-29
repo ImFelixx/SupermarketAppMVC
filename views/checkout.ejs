@@ -30,18 +30,27 @@
     <div class="checkout-card bg-white">
         <h2 class="text-center mb-4">🧾 Checkout</h2>
 
-        <!-- DELIVERY ADDRESS -->
-        <h5 class="section-title">Delivery Information</h5>
-        <form action="/place-order" method="POST">
+        <form action="/place-order" method="POST" id="checkout-form">
+            <!-- DELIVERY ADDRESS -->
+            <h5 class="section-title">Delivery Information</h5>
 
             <div class="mb-3">
                 <label class="form-label">Delivery Address</label>
-                <textarea 
-                    name="delivery_address" 
-                    class="form-control" 
-                    rows="3" 
+                <textarea
+                    name="delivery_address"
+                    class="form-control"
+                    rows="3"
                     placeholder="Enter your delivery address..."
                     required></textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Delivery Method</label>
+                <select class="form-select" name="delivery_method" id="delivery-method" required>
+                    <option value="normal" selected>Normal Delivery (3-4 days) - $10.00</option>
+                    <option value="express">Express Delivery (1-2 days) - $15.00</option>
+                    <option value="pickup">Pickup in store - $0.00</option>
+                </select>
             </div>
 
             <hr>
@@ -76,11 +85,9 @@
             <!-- ORDER SUMMARY -->
             <h5 class="section-title">Order Summary</h5>
 
-            <% 
-                let subtotal = 0; 
+            <%
+                let subtotal = 0;
                 cart.forEach(item => subtotal += item.quantity * item.price);
-                let deliveryFee = 10;
-                let grandTotal = subtotal + deliveryFee;
             %>
 
             <div class="d-flex justify-content-between">
@@ -90,12 +97,12 @@
 
             <div class="d-flex justify-content-between">
                 <span>Delivery Fee:</span>
-                <strong>$10.00</strong>
+                <strong id="delivery-fee">$10.00</strong>
             </div>
 
             <div class="d-flex justify-content-between mt-2 fs-5">
                 <span>Total:</span>
-                <strong>$<%= grandTotal.toFixed(2) %></strong>
+                <strong id="grand-total">$<%= (subtotal + 10).toFixed(2) %></strong>
             </div>
 
             <hr>
@@ -109,6 +116,32 @@
 </div>
 
 <%- include("partials/footer") %>
+
+<script>
+    (() => {
+        const deliveryFeeMap = {
+            normal: 10,
+            express: 15,
+            pickup: 0
+        };
+
+        const subtotal = <%= subtotal.toFixed(2) %>;
+        const methodSelect = document.getElementById('delivery-method');
+        const feeEl = document.getElementById('delivery-fee');
+        const totalEl = document.getElementById('grand-total');
+
+        const updateTotals = () => {
+            const method = methodSelect.value;
+            const fee = deliveryFeeMap[method] ?? 10;
+            const total = subtotal + fee;
+            feeEl.textContent = `$${fee.toFixed(2)}`;
+            totalEl.textContent = `$${total.toFixed(2)}`;
+        };
+
+        methodSelect.addEventListener('change', updateTotals);
+        updateTotals();
+    })();
+</script>
 
 </body>
 </html>

@@ -32,7 +32,7 @@ const dashboardController = {
                     price: Number(v.price)
                 }));
 
-                // ================= LAST 5 BOUGHT =================
+                // ================= LAST 15 BOUGHT =================
                 const lastBoughtSQL = `
                     SELECT p.productName, p.image, oi.quantity, oi.price
                     FROM order_items oi
@@ -40,7 +40,7 @@ const dashboardController = {
                     JOIN orders o ON o.id = oi.order_id
                     WHERE o.user_id = ?
                     ORDER BY o.created_at DESC
-                    LIMIT 5
+                    LIMIT 15
                 `;
 
                 connection.query(lastBoughtSQL, [userId], (err3, lastBought) => {

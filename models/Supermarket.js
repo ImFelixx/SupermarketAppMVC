@@ -41,6 +41,45 @@ const ProductModel = {
             if (err) return callback(err);
             return callback(null, { affectedRows: result.affectedRows });
         });
+    },
+
+    /**
+     * Decrease stock for a product ensuring it doesn't go negative.
+     */
+    decrementStock(productId, quantity, callback) {
+        const sql = `
+            UPDATE products
+            SET quantity = quantity - ?
+            WHERE id = ? AND quantity >= ?
+        `;
+        db.query(sql, [quantity, productId, quantity], (err, result) => {
+            if (err) return callback(err);
+            return callback(null, { affectedRows: result.affectedRows });
+        });
+    },
+
+    /**
+     * Count all products (used in dashboards).
+     */
+    countAll(callback) {
+        const sql = 'SELECT COUNT(*) AS totalProducts FROM products';
+        db.query(sql, (err, results) => {
+            if (err) return callback(err);
+            const total = results && results.length ? results[0].totalProducts : 0;
+            return callback(null, total);
+        });
+    },
+
+    /**
+     * Fetch products below a quantity threshold.
+     */
+    getLowStock(threshold, callback) {
+        const sql = `
+            SELECT * FROM products
+            WHERE quantity < ?
+            ORDER BY quantity ASC
+        `;
+        db.query(sql, [threshold], callback);
     }
 };
 

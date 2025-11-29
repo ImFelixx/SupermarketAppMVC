@@ -26,12 +26,18 @@
 
     <p><strong>Delivery Fee:</strong> $<%= Number(order.delivery_fee).toFixed(2) %></p>
 
-    <p><strong>Items Total:</strong> 
-        $<%= Number(order.total).toFixed(2) %>
+    <%
+      // Calculate subtotal from items to avoid double-adding delivery fee
+      let itemsSubtotal = 0;
+      items.forEach(i => { itemsSubtotal += Number(i.price) * Number(i.quantity); });
+    %>
+
+    <p><strong>Items Total:</strong>
+        $<%= itemsSubtotal.toFixed(2) %>
     </p>
 
     <p><strong>Grand Total:</strong> 
-        $<%= (Number(order.total) + Number(order.delivery_fee)).toFixed(2) %>
+        $<%= Number(order.total).toFixed(2) %>
     </p>
 
     <p><strong>Date:</strong>
@@ -75,6 +81,7 @@
   </div>
 
   <div class="text-center mt-4">
+    <a href="/orders/<%= order.id %>/invoice" class="btn btn-outline-secondary">Download Invoice (PDF)</a>
     <a href="/shopping" class="btn btn-success">Shop More</a>
     <a href="/orderhistory" class="btn btn-primary">View All Orders</a>
   </div>

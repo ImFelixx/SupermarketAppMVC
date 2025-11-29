@@ -5,6 +5,7 @@ const multer = require('multer');
 const connection = require('./db');
 const app = express();
 const Product = require('./models/supermarket');
+const Cart = require('./models/cart');
 
 // -------------------- MULTER (IMAGE UPLOAD) --------------------
 const storage = multer.diskStorage({
@@ -36,15 +37,29 @@ app.use((req, res, next) => {
     next();
 });
 
-// -------------------- GLOBAL CART + CART COUNT --------------------
+// -------------------- GLOBAL CART + CART COUNT (DB-BACKED) --------------------
 app.use((req, res, next) => {
-    res.locals.cart = req.session.cart || [];
+    if (!req.session.user) {
+        req.cart = [];
+        res.locals.cart = [];
+        res.locals.cartCount = 0;
+        return next();
+    }
 
-    res.locals.cartCount = req.session.cart
-        ? req.session.cart.reduce((sum, item) => sum + item.quantity, 0)
-        : 0;
-
-    next();
+    const userId = req.session.user.id;
+    Cart.getCartItems(userId, (err, items) => {
+        if (err) {
+            console.error('Error loading cart for user', userId, err);
+            req.cart = [];
+            res.locals.cart = [];
+            res.locals.cartCount = 0;
+            return next();
+        }
+        req.cart = items || [];
+        res.locals.cart = req.cart;
+        res.locals.cartCount = req.cart.reduce((sum, item) => sum + Number(item.quantity || 0), 0);
+        return next();
+    });
 });
 
 // -------------------- AUTH MIDDLEWARE --------------------
@@ -222,74 +237,71 @@ app.post("/add-to-cart/:id", checkAuthenticated, (req, res) => {
             return res.redirect("/shopping");
         }
 
-        if (!req.session.cart) req.session.cart = [];
+        const existing = (req.cart || []).find(p => p.id === product.id);
+        const newQty = (existing ? existing.quantity : 0) + quantity;
 
-        const existing = req.session.cart.find(p => p.id === product.id);
+        if (newQty > product.quantity) {
+            req.flash("error", `Cannot exceed stock quantity (${product.quantity}).`);
+            return res.redirect("/shopping");
+        }
 
-        if (existing) {
-            if (existing.quantity + quantity > product.quantity) {
-                req.flash("error", `Cannot exceed stock quantity (${product.quantity}).`);
+        Cart.setItemQuantity(req.session.user.id, product.id, newQty, (err4) => {
+            if (err4) {
+                console.error('Error saving cart item:', err4);
+                req.flash("error", "Failed to add to cart.");
                 return res.redirect("/shopping");
             }
 
-            existing.quantity += quantity;
-            existing.stock = product.quantity;   // keep stock updated
-
-        } else {
-            req.session.cart.push({
-                id: product.id,
-                productName: product.productName,
-                price: product.price,
-                quantity,
-                image: product.image,
-                stock: product.quantity  // ⭐ add stock info
-            });
-        }
-
-        req.flash("success", `Added ${quantity} × ${product.productName} to cart`);
-        res.redirect("/shopping");
+            req.flash("success", `Added ${quantity} × ${product.productName} to cart`);
+            return res.redirect("/shopping");
+        });
     });
 });
 
-app.post("/remove-from-cart/:index", checkAuthenticated, (req, res) => {
-    const index = parseInt(req.params.index, 10);
+app.post("/remove-from-cart/:productId", checkAuthenticated, (req, res) => {
+    const productId = parseInt(req.params.productId, 10);
+    if (Number.isNaN(productId)) return res.redirect('/cart');
 
-    if (req.session.cart[index]) {
-        req.session.cart.splice(index, 1);
-    }
-
-    res.redirect('/cart');
+    Cart.removeItem(req.session.user.id, productId, (err) => {
+        if (err) {
+            console.error('Error removing cart item:', err);
+            req.flash("error", "Failed to remove item.");
+        }
+        res.redirect('/cart');
+    });
 });
 
-app.post("/update-cart/:index", checkAuthenticated, (req, res) => {
-    const index = parseInt(req.params.index, 10);
+app.post("/update-cart/:productId", checkAuthenticated, (req, res) => {
+    const productId = parseInt(req.params.productId, 10);
     let qty = parseInt(req.body.quantity, 10);
 
-    if (!req.session.cart[index]) return res.redirect("/cart");
+    if (Number.isNaN(productId)) return res.redirect("/cart");
 
-    const item = req.session.cart[index];
+    if (Number.isNaN(qty) || qty < 1) qty = 1;
 
-    // Fetch product from DB to compare stock
-    Product.getProductById(item.id, (err, product) => {
+    Product.getProductById(productId, (err, product) => {
         if (err || !product) return res.redirect("/cart");
 
-        if (qty < 1) qty = 1;
-
-        // ❗ Prevent exceeding stock
         if (qty > product.quantity) {
             req.flash("error", `Only ${product.quantity} left in stock.`);
             return res.redirect("/cart");
         }
 
-        req.session.cart[index].quantity = qty;
-        req.flash("success", "Quantity updated!");
-        res.redirect("/cart");
+        Cart.setItemQuantity(req.session.user.id, productId, qty, (err2) => {
+            if (err2) {
+                console.error('Error updating cart quantity:', err2);
+                req.flash("error", "Failed to update quantity.");
+            } else {
+                req.flash("success", "Quantity updated!");
+            }
+            res.redirect("/cart");
+        });
     });
 });
 
 // Cart
 app.get("/cart", checkAuthenticated, (req, res) => {
-    const cart = req.session.cart || [];
+    const cart = req.cart || [];
     res.render("cart", {
         cart,
         user: req.session.user
@@ -319,6 +331,7 @@ app.get("/checkout", checkAuthenticated, orderController.checkoutPage);
 app.post("/place-order", checkAuthenticated, orderController.placeOrder);
 app.get("/orders", checkAuthenticated, orderController.viewUserOrders);
 app.get("/orders/:id", checkAuthenticated, orderController.viewOrderDetails);
+app.get("/orders/:id/invoice", checkAuthenticated, orderController.downloadInvoice);
 app.get("/orderhistory", checkAuthenticated, orderController.viewUserOrders);
 
 // -------------------- USER PROFILE --------------------
@@ -336,6 +349,7 @@ app.get("/admin/orders", checkAuthenticated, checkAdmin, adminOrderController.vi
 
 // View single order
 app.get("/admin/orders/:id", checkAuthenticated, checkAdmin, adminOrderController.viewOrderPage);
+app.get("/admin/orders/:id/invoice", checkAuthenticated, checkAdmin, adminOrderController.downloadInvoice);
 
 // Edit order
 app.get("/admin/orders/edit/:id", checkAuthenticated, checkAdmin, adminOrderController.editOrderPage);

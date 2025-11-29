@@ -24,6 +24,7 @@
           <th>Total</th>
           <th>Date</th>
           <th>View</th>
+          <th>Invoice</th>
         </tr>
       </thead>
 
@@ -46,6 +47,9 @@
             </td>
             <td>
               <a href="/orders/<%= o.id %>" class="btn btn-sm btn-primary">View Details</a>
+            </td>
+            <td>
+              <a href="/orders/<%= o.id %>/invoice" class="btn btn-sm btn-outline-secondary">PDF</a>
             </td>
           </tr>
         <% }) %>

@@ -1,6 +1,14 @@
 const connection = require("../db");
 const crypto = require("crypto");
 
+// Helper to count admins
+function countAdmins(cb) {
+    connection.query("SELECT COUNT(*) AS adminCount FROM users WHERE role = 'admin'", (err, rows) => {
+        if (err) return cb(err);
+        cb(null, rows[0].adminCount);
+    });
+}
+
 const adminUserController = {
 
     // 🔹 View all users
@@ -35,16 +43,26 @@ const adminUserController = {
 
         const hash = crypto.createHash("sha1").update(password).digest("hex");
 
-        const sql = `
-            INSERT INTO users (username, email, password, role)
-            VALUES (?, ?, ?, ?)
-        `;
-
-        connection.query(sql, [username, email, hash, role], (err) => {
+        // Prevent creating only non-admin users when no admin exists
+        countAdmins((err, adminCount) => {
             if (err) throw err;
 
-            req.flash("success", "New user added!");
-            res.redirect("/admin/users");
+            if (adminCount === 0 && role !== "admin") {
+                req.flash("error", "You must have at least one admin. Create an admin account first.");
+                return res.redirect("/admin/users/add");
+            }
+
+            const sql = `
+                INSERT INTO users (username, email, password, role)
+                VALUES (?, ?, ?, ?)
+            `;
+
+            connection.query(sql, [username, email, hash, role], (err2) => {
+                if (err2) throw err2;
+
+                req.flash("success", "New user added!");
+                res.redirect("/admin/users");
+            });
         });
     },
 
@@ -67,18 +85,34 @@ const adminUserController = {
     // 🔹 Save updated user
     updateUser(req, res) {
         const id = req.params.id;
-        const { username, email, role } = req.body;
+        const { username, email, role, address, contact } = req.body;
 
-        const sql = `
-            UPDATE users SET username = ?, email = ?, role = ?
-            WHERE id = ?
-        `;
-
-        connection.query(sql, [username, email, role, id], (err) => {
+        // Fetch current user and admin count to prevent demoting the last admin
+        connection.query("SELECT * FROM users WHERE id = ?", [id], (err, rows) => {
             if (err) throw err;
+            const existingUser = rows[0];
 
-            req.flash("success", "User updated!");
-            res.redirect("/admin/users");
+            countAdmins((err2, adminCount) => {
+                if (err2) throw err2;
+
+                const demotingLastAdmin = existingUser.role === "admin" && role !== "admin" && adminCount <= 1;
+                if (demotingLastAdmin) {
+                    req.flash("error", "At least one admin must remain. Promote another admin before changing this role.");
+                    return res.redirect(`/admin/users/edit/${id}`);
+                }
+
+                const sql = `
+                    UPDATE users SET username = ?, email = ?, role = ?, address = ?, contact = ?
+                    WHERE id = ?
+                `;
+
+                connection.query(sql, [username, email, role, address, contact, id], (err3) => {
+                    if (err3) throw err3;
+
+                    req.flash("success", "User updated!");
+                    res.redirect("/admin/users");
+                });
+            });
         });
     }
 };

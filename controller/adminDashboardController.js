@@ -1,4 +1,5 @@
 const connection = require("../db");
+const Product = require("../models/supermarket");
 
 const adminDashboardController = {
 
@@ -6,7 +7,6 @@ const adminDashboardController = {
 
         const statsSQL = `
             SELECT 
-                (SELECT COUNT(*) FROM products) AS totalProducts,
                 (SELECT COUNT(*) FROM orders) AS totalOrders,
                 (SELECT IFNULL(SUM(total),0) FROM orders) AS totalRevenue,
                 (SELECT COUNT(*) FROM users) AS totalUsers
@@ -35,39 +35,37 @@ const adminDashboardController = {
             LIMIT 5;
         `;
 
-        const lowStockSQL = `
-            SELECT * FROM products
-            WHERE quantity < 10
-            ORDER BY quantity ASC;
-        `;
-
-        connection.query(statsSQL, (err, stats) => {
+        Product.countAll((err, totalProducts) => {
             if (err) throw err;
-            const s = stats[0];
 
-            connection.query(monthlySalesSQL, (err2, monthlySales) => {
-                if (err2) throw err2;
+            connection.query(statsSQL, (errStats, stats) => {
+                if (errStats) throw errStats;
+                const s = stats[0];
 
-                connection.query(userBreakdownSQL, (err3, usersBreakdown) => {
-                    if (err3) throw err3;
+                connection.query(monthlySalesSQL, (err2, monthlySales) => {
+                    if (err2) throw err2;
 
-                    connection.query(recentOrdersSQL, (err4, recentOrders) => {
-                        if (err4) throw err4;
+                    connection.query(userBreakdownSQL, (err3, usersBreakdown) => {
+                        if (err3) throw err3;
 
-                        connection.query(lowStockSQL, (err5, lowStock) => {
-                            if (err5) throw err5;
+                        connection.query(recentOrdersSQL, (err4, recentOrders) => {
+                            if (err4) throw err4;
 
-                            res.render("admin_dashboard", {
-                                totalProducts: s.totalProducts,
-                                totalOrders: s.totalOrders,
-                                totalRevenue: s.totalRevenue,
-                                totalUsers: s.totalUsers,
-                                monthlySales,
-                                usersBreakdown,
-                                recentOrders,
-                                lowStock
+                            Product.getLowStock(10, (err5, lowStock) => {
+                                if (err5) throw err5;
+
+                                res.render("admin_dashboard", {
+                                    totalProducts,
+                                    totalOrders: s.totalOrders,
+                                    totalRevenue: s.totalRevenue,
+                                    totalUsers: s.totalUsers,
+                                    monthlySales,
+                                    usersBreakdown,
+                                    recentOrders,
+                                    lowStock
+                                });
+
                             });
-
                         });
                     });
                 });
