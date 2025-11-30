@@ -65,7 +65,7 @@ const adminOrderController = {
     // UPDATE ORDER DETAILS
     updateOrder(req, res) {
         const orderId = req.params.id;
-        const { delivery_address, delivery_fee } = req.body;
+        const { delivery_address, delivery_fee, status } = req.body;
 
         const subtotalSQL = `
             SELECT SUM(quantity * price) AS subtotal
@@ -84,13 +84,13 @@ const adminOrderController = {
 
             const updateSQL = `
                 UPDATE orders
-                SET delivery_address = ?, delivery_fee = ?, total = ?
+                SET delivery_address = ?, delivery_fee = ?, total = ?, status = ?
                 WHERE id = ?
             `;
 
             connection.query(
                 updateSQL,
-                [delivery_address, fee.toFixed(2), newTotal.toFixed(2), orderId],
+                [delivery_address, fee.toFixed(2), newTotal.toFixed(2), status, orderId],
                 (err2) => {
                     if (err2) throw err2;
 

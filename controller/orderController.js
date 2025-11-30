@@ -20,10 +20,13 @@ const orderController = {
 
     placeOrder(req, res) {
         const userId = req.session.user.id;
-        const deliveryAddress = req.body.delivery_address;
         const deliveryMethod = req.body.delivery_method || 'normal';
+        let deliveryAddress = req.body.delivery_address;
 
-        if (!deliveryAddress) {
+        // Address handling: allow pickup without address
+        if (deliveryMethod === 'pickup') {
+            deliveryAddress = 'Pickup in store';
+        } else if (!deliveryAddress) {
             req.flash("error", "Delivery address is required.");
             return res.redirect("/checkout");
         }

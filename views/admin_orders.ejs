@@ -48,6 +48,7 @@
                 <tr>
                     <th>Order ID</th>
                     <th>User</th>
+                    <th>Status</th>
                     <th>Total</th>
                     <th>Delivery Fee</th>
                     <th>Date</th>
@@ -61,6 +62,8 @@
                     <td>#<%= order.id %></td>
 
                     <td><%= order.username %></td>
+
+                    <td><%= order.status %></td>
 
                     <td>$<%= Number(order.total).toFixed(2) %></td>
 

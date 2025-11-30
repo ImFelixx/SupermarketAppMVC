@@ -51,7 +51,7 @@
                     <th>Email</th>
                     <th>Role</th>
                     <th>Contact</th>
-                    <th width="140">Actions</th>
+                    <th width="210">Actions</th>
                 </tr>
             </thead>
 
@@ -71,7 +71,12 @@
                     <td><%= user.contact %></td>
 
                     <td>
-                        <a href="/admin/users/edit/<%= user.id %>" class="btn btn-warning btn-sm">Edit</a>
+                        <div class="d-flex justify-content-center gap-2">
+                            <a href="/admin/users/edit/<%= user.id %>" class="btn btn-warning btn-sm">Edit</a>
+                            <form action="/admin/users/delete/<%= user.id %>" method="POST" onsubmit="return confirm('Delete this user?');">
+                                <button class="btn btn-danger btn-sm" type="submit">Delete</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 <% }) %>

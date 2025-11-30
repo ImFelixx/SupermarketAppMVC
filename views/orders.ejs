@@ -24,6 +24,8 @@
         <%= order.delivery_address %>
     </p>
 
+    <p><strong>Status:</strong> <%= order.status %></p>
+
     <p><strong>Delivery Fee:</strong> $<%= Number(order.delivery_fee).toFixed(2) %></p>
 
     <%

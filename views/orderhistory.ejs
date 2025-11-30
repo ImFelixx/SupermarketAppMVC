@@ -22,6 +22,7 @@
         <tr>
           <th>Order ID</th>
           <th>Total</th>
+          <th>Status</th>
           <th>Date</th>
           <th>View</th>
           <th>Invoice</th>
@@ -33,6 +34,7 @@
           <tr>
             <td><%= o.id %></td>
             <td>$<%= Number(o.total).toFixed(2) %></td>
+            <td><%= o.status %></td>
             <td>
                 <%= new Date(o.created_at).toLocaleString("en-US", {
                     weekday: "short",

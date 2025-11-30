@@ -53,6 +53,18 @@
               <a class="nav-link" href="/logout">Logout</a>
             </li>
 
+        <% } else if (user.role === "logistics") { %>
+            <!-- LOGISTICS -->
+            <li class="nav-item">
+              <a class="nav-link <%= currentPath.startsWith('/admin/orders') ? 'active' : '' %>" href="/admin/orders">Orders</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link <%= currentPath === '/admin/dashboard' ? 'active' : '' %>" href="/admin/dashboard">Dashboard</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" href="/logout">Logout</a>
+            </li>
+
         <% } else if (user.role === "admin") { %>
             <!-- ADMIN -->
             <li class="nav-item">

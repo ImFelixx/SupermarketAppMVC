@@ -34,7 +34,7 @@
             <!-- DELIVERY ADDRESS -->
             <h5 class="section-title">Delivery Information</h5>
 
-            <div class="mb-3">
+            <div class="mb-3" id="delivery-address-group">
                 <label class="form-label">Delivery Address</label>
                 <textarea
                     name="delivery_address"
@@ -127,6 +127,8 @@
 
         const subtotal = <%= subtotal.toFixed(2) %>;
         const methodSelect = document.getElementById('delivery-method');
+        const addressGroup = document.getElementById('delivery-address-group');
+        const addressInput = addressGroup ? addressGroup.querySelector('textarea') : null;
         const feeEl = document.getElementById('delivery-fee');
         const totalEl = document.getElementById('grand-total');
 
@@ -136,6 +138,16 @@
             const total = subtotal + fee;
             feeEl.textContent = `$${fee.toFixed(2)}`;
             totalEl.textContent = `$${total.toFixed(2)}`;
+
+            // Hide/disable address when pickup is chosen
+            const isPickup = method === 'pickup';
+            if (addressGroup) {
+                addressGroup.style.display = isPickup ? 'none' : 'block';
+            }
+            if (addressInput) {
+                addressInput.required = !isPickup;
+                if (isPickup) addressInput.value = '';
+            }
         };
 
         methodSelect.addEventListener('change', updateTotals);

@@ -114,6 +114,36 @@ const adminUserController = {
                 });
             });
         });
+    },
+
+    // 🔹 Delete user (with safeguard against removing last admin)
+    deleteUser(req, res) {
+        const id = req.params.id;
+
+        // First check role and admin count
+        connection.query("SELECT role FROM users WHERE id = ?", [id], (err, rows) => {
+            if (err) throw err;
+            const userRow = rows[0];
+            if (!userRow) {
+                req.flash("error", "User not found.");
+                return res.redirect("/admin/users");
+            }
+
+            countAdmins((err2, adminCount) => {
+                if (err2) throw err2;
+
+                if (userRow.role === "admin" && adminCount <= 1) {
+                    req.flash("error", "At least one admin must remain. Create another admin before deleting this account.");
+                    return res.redirect("/admin/users");
+                }
+
+                connection.query("DELETE FROM users WHERE id = ?", [id], (err3) => {
+                    if (err3) throw err3;
+                    req.flash("success", "User deleted.");
+                    res.redirect("/admin/users");
+                });
+            });
+        });
     }
 };
 

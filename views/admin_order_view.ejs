@@ -22,6 +22,7 @@
         <h5>Order Details</h5>
         <p><strong>Customer:</strong> <%= order.username %></p>
         <p><strong>Email:</strong> <%= order.email %></p>
+        <p><strong>Status:</strong> <%= order.status %></p>
         <p><strong>Delivery Address:</strong> <%= order.delivery_address %></p>
         <p><strong>Delivery Fee:</strong> $<%= Number(order.delivery_fee).toFixed(2) %></p>
         <p><strong>Total:</strong> $<%= Number(order.total).toFixed(2) %></p>

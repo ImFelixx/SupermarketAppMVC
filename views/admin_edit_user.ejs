@@ -48,6 +48,7 @@
             <label class="form-label">Role</label>
             <select name="role" class="form-select">
                 <option value="user" <%= editUser.role === "user" ? "selected" : "" %>>User</option>
+                <option value="logistics" <%= editUser.role === "logistics" ? "selected" : "" %>>Logistics</option>
                 <option value="admin" <%= editUser.role === "admin" ? "selected" : "" %>>Admin</option>
             </select>
         </div>

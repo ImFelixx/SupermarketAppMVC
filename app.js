@@ -75,6 +75,14 @@ const checkAdmin = (req, res, next) => {
     res.redirect('/shopping');
 };
 
+const checkAdminOrLogistics = (req, res, next) => {
+    if (req.session.user && (req.session.user.role === 'admin' || req.session.user.role === 'logistics')) {
+        return next();
+    }
+    req.flash('error', 'Access denied.');
+    res.redirect('/shopping');
+};
+
 // -------------------- VALIDATION --------------------
 const validateRegistration = (req, res, next) => {
     const { username, email, password, address, contact, role } = req.body;
@@ -202,9 +210,13 @@ app.post("/login", (req, res) => {
             req.session.user = pwMatch[0];
             req.flash("success", "Login successful!");
 
-            return req.session.user.role === "user"
-                ? res.redirect("/shopping")
-                : res.redirect("/inventory");
+            if (req.session.user.role === "user") {
+                return res.redirect("/shopping");
+            }
+            if (req.session.user.role === "logistics") {
+                return res.redirect("/admin/orders");
+            }
+            return res.redirect("/inventory");
         });
     });
 });
@@ -344,16 +356,16 @@ app.post("/change-password", checkAuthenticated, userController.updatePassword);
 
 app.get("/dashboard", checkAuthenticated, dashboardController.viewDashboard);
 
-// -------------------- ADMIN - ORDERS --------------------
-app.get("/admin/orders", checkAuthenticated, checkAdmin, adminOrderController.viewAllOrders);
+// -------------------- ADMIN/LOGISTICS - ORDERS --------------------
+app.get("/admin/orders", checkAuthenticated, checkAdminOrLogistics, adminOrderController.viewAllOrders);
 
 // View single order
-app.get("/admin/orders/:id", checkAuthenticated, checkAdmin, adminOrderController.viewOrderPage);
-app.get("/admin/orders/:id/invoice", checkAuthenticated, checkAdmin, adminOrderController.downloadInvoice);
+app.get("/admin/orders/:id", checkAuthenticated, checkAdminOrLogistics, adminOrderController.viewOrderPage);
+app.get("/admin/orders/:id/invoice", checkAuthenticated, checkAdminOrLogistics, adminOrderController.downloadInvoice);
 
 // Edit order
-app.get("/admin/orders/edit/:id", checkAuthenticated, checkAdmin, adminOrderController.editOrderPage);
-app.post("/admin/orders/edit/:id", checkAuthenticated, checkAdmin, adminOrderController.updateOrder);
+app.get("/admin/orders/edit/:id", checkAuthenticated, checkAdminOrLogistics, adminOrderController.editOrderPage);
+app.post("/admin/orders/edit/:id", checkAuthenticated, checkAdminOrLogistics, adminOrderController.updateOrder);
 
 // -------------------- ADMIN - USERS --------------------
 app.get("/admin/users", checkAuthenticated, checkAdmin, adminUserController.viewAllUsers);
@@ -361,9 +373,10 @@ app.get("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.
 app.post("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.addUser);
 app.get("/admin/users/edit/:id", checkAuthenticated, checkAdmin, adminUserController.editUserPage);
 app.post("/admin/users/edit/:id", checkAuthenticated, checkAdmin, adminUserController.updateUser);
+app.post("/admin/users/delete/:id", checkAuthenticated, checkAdmin, adminUserController.deleteUser);
 
-// ----------------- ADMIN DASHBOARD -----------------
-app.get("/admin/dashboard", checkAuthenticated, checkAdmin, adminDashboardController.viewDashboard);
+// ----------------- ADMIN/LOGISTICS DASHBOARD -----------------
+app.get("/admin/dashboard", checkAuthenticated, checkAdminOrLogistics, adminDashboardController.viewDashboard);
 
 // -------------------- START SERVER --------------------
 const PORT = process.env.PORT || 3000;
