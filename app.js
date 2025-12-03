@@ -2,10 +2,10 @@ const express = require('express');
 const session = require('express-session');
 const flash = require('connect-flash');
 const multer = require('multer');
-const connection = require('./db');
 const app = express();
 const Product = require('./models/supermarket');
 const Cart = require('./models/cart');
+const User = require('./models/user');
 
 // -------------------- MULTER (IMAGE UPLOAD) --------------------
 const storage = multer.diskStorage({
@@ -124,6 +124,7 @@ app.get("/", (req, res) => {
 
 // Inventory (Admin)
 app.get("/inventory", checkAuthenticated, checkAdmin, supermarketController.listInventory);
+app.get("/admin/export/products", checkAuthenticated, checkAdmin, supermarketController.exportInventoryCsv);
 
 // Register
 app.get("/register", (req, res) => {
@@ -136,33 +137,21 @@ app.get("/register", (req, res) => {
 app.post("/register", validateRegistration, (req, res) => {
     const { username, email, password, address, contact, role } = req.body;
 
-    // 1️⃣ CHECK IF EMAIL ALREADY EXISTS
-    const checkEmailSql = "SELECT * FROM users WHERE email = ?";
-    connection.query(checkEmailSql, [email], (err, results) => {
+    User.getByEmail(email, (err, existingUser) => {
         if (err) throw err;
 
-        if (results.length > 0) {
+        if (existingUser) {
             req.flash("error", "Email already exists, please login.");
             req.flash("formData", req.body);
             return res.redirect("/register");
         }
 
-        // 2️⃣ OTHERWISE PROCEED TO REGISTER
-        const insertSql = `
-            INSERT INTO users (username, email, password, address, contact, role)
-            VALUES (?, ?, SHA1(?), ?, ?, ?)
-        `;
+        User.create({ username, email, password, address, contact, role }, (err2) => {
+            if (err2) throw err2;
 
-        connection.query(
-            insertSql,
-            [username, email, password, address, contact, role],
-            (err2) => {
-                if (err2) throw err2;
-
-                req.flash("success", "Registration successful! Please log in.");
-                res.redirect("/login");
-            }
-        );
+            req.flash("success", "Registration successful! Please log in.");
+            res.redirect("/login");
+        });
     });
 });
 
@@ -182,56 +171,29 @@ app.post("/login", (req, res) => {
         return res.redirect("/login");
     }
 
-    // 1️⃣ CHECK IF EMAIL EXISTS
-    const findEmailSql = "SELECT * FROM users WHERE email = ?";
-    connection.query(findEmailSql, [email], (err, results) => {
+    User.validateCredentials(email, password, (err, user) => {
         if (err) throw err;
 
-        if (results.length === 0) {
-            req.flash("error", "Email doesn't exist, please sign up.");
+        if (!user) {
+            req.flash("error", "Invalid email or password.");
             return res.redirect("/login");
         }
 
-        // 2️⃣ EMAIL EXISTS → CHECK PASSWORD
-        const user = results[0];
-        const checkPwSql = `
-            SELECT * FROM users WHERE email = ? AND password = SHA1(?)
-        `;
+        req.session.user = user;
+        req.flash("success", "Login successful!");
 
-        connection.query(checkPwSql, [email, password], (err2, pwMatch) => {
-            if (err2) throw err2;
-
-            if (pwMatch.length === 0) {
-                req.flash("error", "Incorrect password.");
-                return res.redirect("/login");
-            }
-
-            // 3️⃣ SUCCESS → LOGIN USER
-            req.session.user = pwMatch[0];
-            req.flash("success", "Login successful!");
-
-            if (req.session.user.role === "user") {
-                return res.redirect("/shopping");
-            }
-            if (req.session.user.role === "logistics") {
-                return res.redirect("/admin/orders");
-            }
-            return res.redirect("/inventory");
-        });
+        if (req.session.user.role === "user") {
+            return res.redirect("/shopping");
+        }
+        if (req.session.user.role === "logistics") {
+            return res.redirect("/admin/orders");
+        }
+        return res.redirect("/inventory");
     });
 });
 
 // Shopping Page
-app.get("/shopping", checkAuthenticated, (req, res) => {
-    Product.getAllProducts((err, products) => {
-        res.render("shopping", {
-            products,
-            user: req.session.user,
-            messages: req.flash("success"),
-            errors: req.flash("error")
-        });
-    });
-});
+app.get("/shopping", checkAuthenticated, supermarketController.listShopping);
 
 // Add to Cart
 app.post("/add-to-cart/:id", checkAuthenticated, (req, res) => {
@@ -337,6 +299,7 @@ app.get("/updateProduct/:id", checkAuthenticated, checkAdmin, supermarketControl
 app.post("/updateProduct/:id", checkAuthenticated, checkAdmin, upload.single("image"), supermarketController.updateProduct);
 
 app.get("/deleteProduct/:id", checkAuthenticated, checkAdmin, supermarketController.deleteProduct);
+app.post("/deleteProduct/:id", checkAuthenticated, checkAdmin, supermarketController.deleteProduct);
 
 // Orders
 app.get("/checkout", checkAuthenticated, orderController.checkoutPage);
@@ -358,6 +321,7 @@ app.get("/dashboard", checkAuthenticated, dashboardController.viewDashboard);
 
 // -------------------- ADMIN/LOGISTICS - ORDERS --------------------
 app.get("/admin/orders", checkAuthenticated, checkAdminOrLogistics, adminOrderController.viewAllOrders);
+app.get("/admin/export/orders", checkAuthenticated, checkAdminOrLogistics, adminOrderController.exportOrdersCsv);
 
 // View single order
 app.get("/admin/orders/:id", checkAuthenticated, checkAdminOrLogistics, adminOrderController.viewOrderPage);
@@ -369,6 +333,7 @@ app.post("/admin/orders/edit/:id", checkAuthenticated, checkAdminOrLogistics, ad
 
 // -------------------- ADMIN - USERS --------------------
 app.get("/admin/users", checkAuthenticated, checkAdmin, adminUserController.viewAllUsers);
+app.get("/admin/export/users", checkAuthenticated, checkAdmin, adminUserController.exportUsersCsv);
 app.get("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.addUserPage);
 app.post("/admin/users/add", checkAuthenticated, checkAdmin, adminUserController.addUser);
 app.get("/admin/users/edit/:id", checkAuthenticated, checkAdmin, adminUserController.editUserPage);

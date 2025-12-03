@@ -1,46 +1,28 @@
-const connection = require("../db");
+const Order = require("../models/order");
 const { generateInvoicePDF } = require("../utils/invoiceGenerator");
+const { toCSV } = require("../utils/csv");
 
 const adminOrderController = {
 
     viewAllOrders(req, res) {
-        const sql = `
-            SELECT o.*, u.username
-            FROM orders o
-            JOIN users u ON o.user_id = u.id
-            ORDER BY o.id DESC
-        `;
+        const { search = '', status = '', sort = 'id_desc', dateFrom = '', dateTo = '' } = req.query || {};
 
-        connection.query(sql, (err, orders) => {
+        Order.getAllOrdersWithUserFiltered({ search, status, sort, dateFrom, dateTo }, (err, orders) => {
             if (err) throw err;
-            res.render("admin_orders", { orders });
+            const filterQuery = new URLSearchParams({ search, status, sort, dateFrom, dateTo }).toString();
+            res.render("admin_orders", { orders, filters: { search, status, sort, dateFrom, dateTo }, filterQuery });
         });
     },
 
     viewOrderPage(req, res) {
         const orderId = req.params.id;
 
-        const orderSQL = `
-            SELECT o.*, u.username, u.email
-            FROM orders o
-            JOIN users u ON o.user_id = u.id
-            WHERE o.id = ?
-        `;
-
-        const itemsSQL = `
-            SELECT oi.*, p.productName
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE oi.order_id = ?
-        `;
-
-        connection.query(orderSQL, [orderId], (err, orderResult) => {
+        Order.getOrderWithUser(orderId, (err, order) => {
             if (err) throw err;
-            const order = orderResult[0];
+            if (!order) return res.status(404).send("Order not found.");
 
-            connection.query(itemsSQL, [orderId], (err2, items) => {
+            Order.getOrderItems(orderId, (err2, items) => {
                 if (err2) throw err2;
-
                 res.render("admin_order_view", { order, items });
             });
         });
@@ -49,17 +31,12 @@ const adminOrderController = {
     editOrderPage(req, res) {
         const orderId = req.params.id;
 
-        connection.query(
-            "SELECT * FROM orders WHERE id = ?",
-            [orderId],
-            (err, results) => {
-                if (err) throw err;
-
-                res.render("admin_order_edit", {
-                    order: results[0]
-                });
-            }
-        );
+        Order.getOrderById(orderId, (err, order) => {
+            if (err) throw err;
+            res.render("admin_order_edit", {
+                order
+            });
+        });
     },
 
     // UPDATE ORDER DETAILS
@@ -67,66 +44,24 @@ const adminOrderController = {
         const orderId = req.params.id;
         const { delivery_address, delivery_fee, status } = req.body;
 
-        const subtotalSQL = `
-            SELECT SUM(quantity * price) AS subtotal
-            FROM order_items
-            WHERE order_id = ?
-        `;
-
-        connection.query(subtotalSQL, [orderId], (err, result) => {
+        Order.updateOrderTotals(orderId, { delivery_address, delivery_fee, status }, (err) => {
             if (err) throw err;
 
-            // Force convert MySQL DECIMAL strings → JS numbers
-            const subtotal = result[0].subtotal ? Number(result[0].subtotal) : 0;
-            const fee = Number(delivery_fee);
-
-            const newTotal = subtotal + fee;
-
-            const updateSQL = `
-                UPDATE orders
-                SET delivery_address = ?, delivery_fee = ?, total = ?, status = ?
-                WHERE id = ?
-            `;
-
-            connection.query(
-                updateSQL,
-                [delivery_address, fee.toFixed(2), newTotal.toFixed(2), status, orderId],
-                (err2) => {
-                    if (err2) throw err2;
-
-                    req.flash("success", "Order updated successfully!");
-                    res.redirect(`/admin/orders/${orderId}`);
-                }
-            );
+            req.flash("success", "Order updated successfully!");
+            res.redirect(`/admin/orders/${orderId}`);
         });
     },
 
     downloadInvoice(req, res) {
         const orderId = req.params.id;
 
-        const orderSQL = `
-            SELECT o.*, u.username, u.email
-            FROM orders o
-            JOIN users u ON o.user_id = u.id
-            WHERE o.id = ?
-        `;
-
-        const itemsSQL = `
-            SELECT oi.*, p.productName
-            FROM order_items oi
-            JOIN products p ON oi.product_id = p.id
-            WHERE oi.order_id = ?
-        `;
-
-        connection.query(orderSQL, [orderId], (err, orderResult) => {
+        Order.getOrderWithUser(orderId, (err, order) => {
             if (err) throw err;
-            const order = orderResult[0];
-
             if (!order) {
                 return res.status(404).send("Order not found.");
             }
 
-            connection.query(itemsSQL, [orderId], (err2, items) => {
+            Order.getOrderItems(orderId, (err2, items) => {
                 if (err2) throw err2;
 
                 generateInvoicePDF(res, {
@@ -138,6 +73,41 @@ const adminOrderController = {
                     }
                 });
             });
+        });
+    },
+
+    exportOrdersCsv(req, res) {
+        const { search = '', status = '', sort = 'id_desc', dateFrom = '', dateTo = '' } = req.query || {};
+
+        Order.getAllOrdersWithUserFiltered({ search, status, sort, dateFrom, dateTo }, (err, orders) => {
+            if (err) {
+                console.error('Error exporting orders:', err);
+                return res.status(500).send("Failed to export orders.");
+            }
+
+            const rows = orders.map(o => ({
+                id: o.id,
+                user: o.username,
+                status: o.status,
+                total: Number(o.total).toFixed(2),
+                delivery_fee: Number(o.delivery_fee).toFixed(2),
+                delivery_address: o.delivery_address,
+                created_at: o.created_at ? new Date(o.created_at).toISOString() : ''
+            }));
+
+            const csv = toCSV(rows, [
+                { key: 'id', label: 'Order ID' },
+                { key: 'user', label: 'User' },
+                { key: 'status', label: 'Status' },
+                { key: 'total', label: 'Total' },
+                { key: 'delivery_fee', label: 'Delivery Fee' },
+                { key: 'delivery_address', label: 'Delivery Address' },
+                { key: 'created_at', label: 'Created At' }
+            ]);
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename="orders.csv"');
+            return res.send(csv);
         });
     }
 

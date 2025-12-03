@@ -1,24 +1,20 @@
-const connection = require("../db");
-const crypto = require("crypto");
-
-// Helper to count admins
-function countAdmins(cb) {
-    connection.query("SELECT COUNT(*) AS adminCount FROM users WHERE role = 'admin'", (err, rows) => {
-        if (err) return cb(err);
-        cb(null, rows[0].adminCount);
-    });
-}
+const User = require("../models/user");
+const { toCSV } = require("../utils/csv");
 
 const adminUserController = {
 
     // 🔹 View all users
     viewAllUsers(req, res) {
-        connection.query("SELECT * FROM users", (err, users) => {
+        const { search = '', role = '', sort = 'id_desc' } = req.query || {};
+
+        User.getAllFiltered({ search, role, sort }, (err, users) => {
             if (err) throw err;
 
             res.render("admin_users", {
                 user: req.session.user,
-                users
+                users,
+                filters: { search, role, sort },
+                filterQuery: new URLSearchParams({ search, role, sort }).toString()
             });
         });
     },
@@ -41,10 +37,8 @@ const adminUserController = {
             return res.redirect("/admin/users/add");
         }
 
-        const hash = crypto.createHash("sha1").update(password).digest("hex");
-
         // Prevent creating only non-admin users when no admin exists
-        countAdmins((err, adminCount) => {
+        User.countAdmins((err, adminCount) => {
             if (err) throw err;
 
             if (adminCount === 0 && role !== "admin") {
@@ -52,14 +46,8 @@ const adminUserController = {
                 return res.redirect("/admin/users/add");
             }
 
-            const sql = `
-                INSERT INTO users (username, email, password, role)
-                VALUES (?, ?, ?, ?)
-            `;
-
-            connection.query(sql, [username, email, hash, role], (err2) => {
+            User.create({ username, email, password, role }, (err2) => {
                 if (err2) throw err2;
-
                 req.flash("success", "New user added!");
                 res.redirect("/admin/users");
             });
@@ -70,12 +58,12 @@ const adminUserController = {
     editUserPage(req, res) {
         const id = req.params.id;
 
-        connection.query("SELECT * FROM users WHERE id = ?", [id], (err, rows) => {
+        User.getById(id, (err, user) => {
             if (err) throw err;
 
             res.render("admin_edit_user", {
                 user: req.session.user,
-                editUser: rows[0],
+                editUser: user,
                 errors: req.flash("error"),
                 messages: req.flash("success")
             });
@@ -88,11 +76,10 @@ const adminUserController = {
         const { username, email, role, address, contact } = req.body;
 
         // Fetch current user and admin count to prevent demoting the last admin
-        connection.query("SELECT * FROM users WHERE id = ?", [id], (err, rows) => {
+        User.getById(id, (err, existingUser) => {
             if (err) throw err;
-            const existingUser = rows[0];
 
-            countAdmins((err2, adminCount) => {
+            User.countAdmins((err2, adminCount) => {
                 if (err2) throw err2;
 
                 const demotingLastAdmin = existingUser.role === "admin" && role !== "admin" && adminCount <= 1;
@@ -101,12 +88,7 @@ const adminUserController = {
                     return res.redirect(`/admin/users/edit/${id}`);
                 }
 
-                const sql = `
-                    UPDATE users SET username = ?, email = ?, role = ?, address = ?, contact = ?
-                    WHERE id = ?
-                `;
-
-                connection.query(sql, [username, email, role, address, contact, id], (err3) => {
+                User.updateUser(id, { username, email, role, address, contact }, (err3) => {
                     if (err3) throw err3;
 
                     req.flash("success", "User updated!");
@@ -121,15 +103,14 @@ const adminUserController = {
         const id = req.params.id;
 
         // First check role and admin count
-        connection.query("SELECT role FROM users WHERE id = ?", [id], (err, rows) => {
+        User.getById(id, (err, userRow) => {
             if (err) throw err;
-            const userRow = rows[0];
             if (!userRow) {
                 req.flash("error", "User not found.");
                 return res.redirect("/admin/users");
             }
 
-            countAdmins((err2, adminCount) => {
+            User.countAdmins((err2, adminCount) => {
                 if (err2) throw err2;
 
                 if (userRow.role === "admin" && adminCount <= 1) {
@@ -137,12 +118,45 @@ const adminUserController = {
                     return res.redirect("/admin/users");
                 }
 
-                connection.query("DELETE FROM users WHERE id = ?", [id], (err3) => {
+                User.deleteUser(id, (err3) => {
                     if (err3) throw err3;
                     req.flash("success", "User deleted.");
                     res.redirect("/admin/users");
                 });
             });
+        });
+    },
+
+    exportUsersCsv(req, res) {
+        const { search = '', role = '', sort = 'id_desc' } = req.query || {};
+
+        User.getAllFiltered({ search, role, sort }, (err, users) => {
+            if (err) {
+                console.error('Error exporting users:', err);
+                return res.status(500).send("Failed to export users.");
+            }
+
+            const rows = users.map(u => ({
+                id: u.id,
+                username: u.username,
+                email: u.email,
+                role: u.role,
+                contact: u.contact || '',
+                address: u.address || ''
+            }));
+
+            const csv = toCSV(rows, [
+                { key: 'id', label: 'User ID' },
+                { key: 'username', label: 'Username' },
+                { key: 'email', label: 'Email' },
+                { key: 'role', label: 'Role' },
+                { key: 'contact', label: 'Contact' },
+                { key: 'address', label: 'Address' }
+            ]);
+
+            res.setHeader('Content-Type', 'text/csv');
+            res.setHeader('Content-Disposition', 'attachment; filename="users.csv"');
+            return res.send(csv);
         });
     }
 };

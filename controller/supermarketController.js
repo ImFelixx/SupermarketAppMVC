@@ -1,4 +1,5 @@
 const Product = require('../models/supermarket');
+const { toCSV } = require('../utils/csv');
 
 /**
  * Controller for products (renders views / redirects)
@@ -6,25 +7,68 @@ const Product = require('../models/supermarket');
 const supermarketController = {
 	// Render inventory view (admin)
 	listInventory(req, res) {
-		Product.getAllProducts((err, products) => {
+		const { search = '', sort = 'name_asc', stock = '' } = req.query || {};
+
+		Product.getAllProducts({ search, sort, stockFilter: stock }, (err, products) => {
 			if (err) {
 				console.error('Error fetching products for inventory:', err);
 				req.flash('error', 'Failed to load inventory');
 				return res.redirect('/');
 			}
-			return res.render('inventory', { products, user: req.session.user });
+			const filterQuery = new URLSearchParams({ search, sort, stock }).toString();
+			return res.render('inventory', { products, user: req.session.user, filters: { search, sort, stock }, filterQuery });
+		});
+	},
+	// Export inventory as CSV (respects current filters)
+	exportInventoryCsv(req, res) {
+		const { search = '', sort = 'name_asc', stock = '' } = req.query || {};
+
+		Product.getAllProducts({ search, sort, stockFilter: stock }, (err, products) => {
+			if (err) {
+				console.error('Error exporting products:', err);
+				return res.status(500).send('Failed to export products.');
+			}
+
+			const rows = products.map(p => ({
+				id: p.id,
+				name: p.productName,
+				stock: p.quantity,
+				price: Number(p.price).toFixed(2),
+				image: p.image || ''
+			}));
+
+			const csv = toCSV(rows, [
+				{ key: 'id', label: 'ID' },
+				{ key: 'name', label: 'Name' },
+				{ key: 'stock', label: 'Stock' },
+				{ key: 'price', label: 'Price' },
+				{ key: 'image', label: 'Image' }
+			]);
+
+			res.setHeader('Content-Type', 'text/csv');
+			res.setHeader('Content-Disposition', 'attachment; filename="products.csv"');
+			return res.send(csv);
 		});
 	},
 
 	// Render shopping view (user)
 	listShopping(req, res) {
-		Product.getAllProducts((err, products) => {
+		const { search = '', sort = 'name_asc' } = req.query || {};
+
+		Product.getAllProducts({ search, sort }, (err, products) => {
 			if (err) {
 				console.error('Error fetching products for shopping:', err);
 				req.flash('error', 'Failed to load products');
 				return res.redirect('/');
 			}
-			return res.render('shopping', { products, user: req.session.user });
+			const filters = { search, sort };
+			return res.render('shopping', {
+				products,
+				user: req.session.user,
+				filters,
+				messages: req.flash('success'),
+				errors: req.flash('error')
+			});
 		});
 	},
 

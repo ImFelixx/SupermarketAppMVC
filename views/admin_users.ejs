@@ -36,10 +36,44 @@
 
 <div class="container">
 
-    <div class="d-flex justify-content-between align-items-center mt-4">
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-4">
         <h2 class="page-title">👤 User Management</h2>
-        <a href="/admin/users/add" class="btn btn-success px-4">+ Add User</a>
+        <div class="d-flex gap-2">
+            <a href="/admin/export/users<%= filterQuery ? '?' + filterQuery : '' %>" class="btn btn-outline-secondary">Download CSV</a>
+            <a href="/admin/users/add" class="btn btn-success px-4">+ Add User</a>
+        </div>
     </div>
+
+    <form class="row g-3 mt-3" method="get" action="/admin/users">
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Search (username / email)</label>
+            <input type="text" class="form-control" name="search" placeholder="e.g. john or john@mail.com"
+                   value="<%= filters && filters.search || '' %>">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Role</label>
+            <select name="role" class="form-select">
+                <option value="" <%= !filters || !filters.role ? 'selected' : '' %>>All</option>
+                <option value="admin" <%= filters && filters.role === 'admin' ? 'selected' : '' %>>Admin</option>
+                <option value="user" <%= filters && filters.role === 'user' ? 'selected' : '' %>>User</option>
+                <option value="logistics" <%= filters && filters.role === 'logistics' ? 'selected' : '' %>>Logistics</option>
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Sort</label>
+            <select name="sort" class="form-select">
+                <option value="id_desc" <%= filters && filters.sort === 'id_desc' ? 'selected' : '' %>>Newest</option>
+                <option value="id_asc" <%= filters && filters.sort === 'id_asc' ? 'selected' : '' %>>Oldest</option>
+                <option value="name_asc" <%= filters && filters.sort === 'name_asc' ? 'selected' : '' %>>Name (A-Z)</option>
+                <option value="name_desc" <%= filters && filters.sort === 'name_desc' ? 'selected' : '' %>>Name (Z-A)</option>
+                <option value="email_asc" <%= filters && filters.sort === 'email_asc' ? 'selected' : '' %>>Email (A-Z)</option>
+                <option value="email_desc" <%= filters && filters.sort === 'email_desc' ? 'selected' : '' %>>Email (Z-A)</option>
+            </select>
+        </div>
+        <div class="col-12 d-flex justify-content-end">
+            <button class="btn btn-primary">Apply</button>
+        </div>
+    </form>
 
     <div class="table-wrapper mt-3">
 

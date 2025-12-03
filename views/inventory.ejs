@@ -41,6 +41,18 @@
             padding: 4px 12px;
             border-radius: 20px;
         }
+        .price-col {
+            min-width: 110px;
+        }
+        .actions-col {
+            min-width: 200px;
+            vertical-align: middle;
+            padding-top: 0.75rem;
+            padding-bottom: 0.75rem;
+        }
+        .actions-col form {
+            margin: 0;
+        }
     </style>
 </head>
 
@@ -52,41 +64,80 @@
 <!-- CONTENT -->
 <div class="container">
 
-    <div class="d-flex justify-content-between align-items-center mt-4">
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-4">
         <h2 class="page-title">🛒 Product Management</h2>
 
-        <a href="/addProduct" class="btn btn-success btn-add">
-            + Add Product
-        </a>
+        <div class="d-flex gap-2">
+            <a href="/admin/export/products<%= filterQuery ? '?' + filterQuery : '' %>" class="btn btn-outline-secondary">
+                Download CSV
+            </a>
+            <a href="/addProduct" class="btn btn-success btn-add">
+                + Add Product
+            </a>
+        </div>
     </div>
 
     <div class="table-wrapper mt-4">
 
-        <table class="table table-hover align-middle text-center">
+        <form class="row g-3 mb-3" method="get" action="/inventory">
+            <div class="col-md-4">
+                <label class="form-label fw-semibold">Search by name</label>
+                <input type="text" name="search" class="form-control" placeholder="e.g. apple"
+                       value="<%= (filters && filters.search) || '' %>">
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Stock filter</label>
+                <select class="form-select" name="stock">
+                    <option value="" <%= !filters || !filters.stock ? 'selected' : '' %>>All stock</option>
+                    <option value="low" <%= filters && filters.stock === 'low' ? 'selected' : '' %>>Low (&lt; 5)</option>
+                    <option value="medium" <%= filters && filters.stock === 'medium' ? 'selected' : '' %>>Medium (5 - 19)</option>
+                    <option value="high" <%= filters && filters.stock === 'high' ? 'selected' : '' %>>High (20+)</option>
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <label class="form-label fw-semibold">Sort by</label>
+                <select class="form-select" name="sort">
+                    <option value="name_asc" <%= filters && filters.sort === 'name_asc' ? 'selected' : '' %>>Name (A-Z)</option>
+                    <option value="name_desc" <%= filters && filters.sort === 'name_desc' ? 'selected' : '' %>>Name (Z-A)</option>
+                    <option value="stock_desc" <%= filters && filters.sort === 'stock_desc' ? 'selected' : '' %>>Stock (High → Low)</option>
+                    <option value="stock_asc" <%= filters && filters.sort === 'stock_asc' ? 'selected' : '' %>>Stock (Low → High)</option>
+                    <option value="price_desc" <%= filters && filters.sort === 'price_desc' ? 'selected' : '' %>>Price (High → Low)</option>
+                    <option value="price_asc" <%= filters && filters.sort === 'price_asc' ? 'selected' : '' %>>Price (Low → High)</option>
+                </select>
+            </div>
+
+            <div class="col-md-2 d-flex align-items-end justify-content-end">
+                <button type="submit" class="btn btn-primary w-100">Apply</button>
+            </div>
+        </form>
+
+        <table class="table table-hover align-middle">
             <thead class="table-dark">
                 <tr>
-                    <th>Product</th>
-                    <th>Image</th>
-                    <th>Stock</th>
-                    <th>Price</th>
-                    <th width="80">Edit</th>
+                    <th class="text-start">Product</th>
+                    <th class="text-center">Image</th>
+                    <th class="text-center">Stock</th>
+                    <th class="text-end price-col">Price</th>
+                    <th class="text-center" width="200">Actions</th>
                 </tr>
             </thead>
 
             <tbody>
                 <% products.forEach(product => { %>
                 <tr>
-                    <td>
+                    <td class="text-start">
                         <a href="/product/<%= product.id %>" class="fw-bold text-decoration-none">
                             <%= product.productName %>
                         </a>
                     </td>
 
-                    <td>
+                    <td class="text-center">
                         <img src="images/<%= product.image %>" class="product-img">
                     </td>
 
-                    <td>
+                    <td class="text-center">
                         <% if (product.quantity < 5) { %>
                             <span class="badge bg-danger badge-stock">Low ( <%= product.quantity %> )</span>
                         <% } else if (product.quantity < 20) { %>
@@ -96,12 +147,19 @@
                         <% } %>
                     </td>
 
-                    <td>$<%= product.price.toFixed(2) %></td>
+                    <td class="text-end fw-semibold price-col">$<%= product.price.toFixed(2) %></td>
 
-                    <td>
-                        <a href="/updateProduct/<%= product.id %>" class="btn btn-primary action-btn btn-sm">
-                            Edit
-                        </a>
+                    <td class="actions-col text-center">
+                        <div class="d-flex justify-content-center align-items-center gap-2">
+                            <a href="/updateProduct/<%= product.id %>" class="btn btn-primary action-btn btn-sm">
+                                Edit
+                            </a>
+                            <form method="post" action="/deleteProduct/<%= product.id %>" onsubmit="return confirm('Delete this product?');">
+                                <button type="submit" class="btn btn-danger action-btn btn-sm">
+                                    Delete
+                                </button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
                 <% }) %>

@@ -43,17 +43,32 @@
         </div>
       <% } %>
     
-      <div class="row mb-3">
-        <div class="col-md-6 mx-auto">
+      <form class="row gy-2 gx-3 align-items-end mb-3" method="get" action="/shopping">
+        <div class="col-md-6">
+            <label class="form-label fw-semibold">Search</label>
             <input 
                 type="text" 
-                id="productSearch" 
-                class="form-control form-control-lg" 
+                name="search"
+                class="form-control" 
                 placeholder="🔍 Search products by name..."
-                onkeyup="filterProducts()"
+                value="<%= filters && filters.search || '' %>"
             >
         </div>
-      </div>
+        <div class="col-md-4">
+            <label class="form-label fw-semibold">Sort</label>
+            <select name="sort" class="form-select">
+                <option value="name_asc" <%= filters && filters.sort === 'name_asc' ? 'selected' : '' %>>Name (A-Z)</option>
+                <option value="name_desc" <%= filters && filters.sort === 'name_desc' ? 'selected' : '' %>>Name (Z-A)</option>
+                <option value="price_asc" <%= filters && filters.sort === 'price_asc' ? 'selected' : '' %>>Price (Low → High)</option>
+                <option value="price_desc" <%= filters && filters.sort === 'price_desc' ? 'selected' : '' %>>Price (High → Low)</option>
+                <option value="stock_desc" <%= filters && filters.sort === 'stock_desc' ? 'selected' : '' %>>Stock (High → Low)</option>
+                <option value="stock_asc" <%= filters && filters.sort === 'stock_asc' ? 'selected' : '' %>>Stock (Low → High)</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex">
+            <button class="btn btn-primary w-100 mt-auto" type="submit">Apply</button>
+        </div>
+      </form>
 
       <table class="table table-hover text-center align-middle mt-4">
           <thead class="table-dark">
@@ -68,6 +83,7 @@
           </thead>
 
           <tbody>
+              <% if (products && products.length) { %>
               <% products.forEach(product => { %>
               <tr>
                   <td>
@@ -112,6 +128,11 @@
                   </td>
               </tr>
               <% }) %>
+              <% } else { %>
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">No products match your filters.</td>
+                </tr>
+              <% } %>
           </tbody>
       </table>
 
@@ -249,20 +270,6 @@ function toggleMiniCart() {
     popup.style.display = popup.style.display === "block" ? "none" : "block";
 }
 
-function filterProducts() {
-    const input = document.getElementById("productSearch").value.toLowerCase();
-    const rows = document.querySelectorAll("table tbody tr");
-
-    rows.forEach(row => {
-        const productName = row.querySelector("td a").innerText.toLowerCase();
-
-        if (productName.includes(input)) {
-            row.style.display = "";
-        } else {
-            row.style.display = "none";
-        }
-    });
-}
 </script>
 
 </body>

@@ -36,10 +36,53 @@
 
 <div class="container">
 
-    <div class="d-flex justify-content-between align-items-center mt-4">
-        <h2 class="page-title">📦 Order Management</h2>
-        <p class="text-muted ms-auto">All placed orders</p>
+    <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mt-4">
+        <div>
+            <h2 class="page-title mb-0">📦 Order Management</h2>
+            <p class="text-muted mb-0">All placed orders</p>
+        </div>
+        <a href="/admin/export/orders<%= filterQuery ? '?' + filterQuery : '' %>" class="btn btn-outline-secondary">Download CSV</a>
     </div>
+
+    <form class="row g-3 mt-3" method="get" action="/admin/orders">
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Search (user / order id)</label>
+            <input type="text" class="form-control" name="search" placeholder="e.g. john or 102"
+                   value="<%= filters && filters.search || '' %>">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-semibold">Status</label>
+            <select name="status" class="form-select">
+                <option value="" <%= !filters || !filters.status ? 'selected' : '' %>>All</option>
+                <option value="pending" <%= filters && filters.status === 'pending' ? 'selected' : '' %>>Pending</option>
+                <option value="shipped" <%= filters && filters.status === 'shipped' ? 'selected' : '' %>>Shipped</option>
+                <option value="delivered" <%= filters && filters.status === 'delivered' ? 'selected' : '' %>>Delivered</option>
+                <option value="cancelled" <%= filters && filters.status === 'cancelled' ? 'selected' : '' %>>Cancelled</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-semibold">Date from</label>
+            <input type="date" class="form-control" name="dateFrom" value="<%= filters && filters.dateFrom || '' %>">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label fw-semibold">Date to</label>
+            <input type="date" class="form-control" name="dateTo" value="<%= filters && filters.dateTo || '' %>">
+        </div>
+        <div class="col-md-3">
+            <label class="form-label fw-semibold">Sort</label>
+            <select name="sort" class="form-select">
+                <option value="id_desc" <%= filters && filters.sort === 'id_desc' ? 'selected' : '' %>>Newest</option>
+                <option value="id_asc" <%= filters && filters.sort === 'id_asc' ? 'selected' : '' %>>Oldest</option>
+                <option value="date_desc" <%= filters && filters.sort === 'date_desc' ? 'selected' : '' %>>Date (newest)</option>
+                <option value="date_asc" <%= filters && filters.sort === 'date_asc' ? 'selected' : '' %>>Date (oldest)</option>
+                <option value="total_desc" <%= filters && filters.sort === 'total_desc' ? 'selected' : '' %>>Total (high → low)</option>
+                <option value="total_asc" <%= filters && filters.sort === 'total_asc' ? 'selected' : '' %>>Total (low → high)</option>
+            </select>
+        </div>
+        <div class="col-12 d-flex justify-content-end">
+            <button class="btn btn-primary">Apply</button>
+        </div>
+    </form>
 
     <div class="table-wrapper mt-3">
 

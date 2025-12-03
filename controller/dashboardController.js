@@ -1,28 +1,16 @@
-const connection = require("../db");
+const Order = require("../models/order");
 
 const dashboardController = {
     viewDashboard(req, res) {
         const userId = req.session.user.id;
 
-        // ================= TOTAL ORDERS =================
-        const totalOrdersSQL = `
-            SELECT COUNT(*) AS totalOrders
-            FROM orders
-            WHERE user_id = ?
-        `;
+        Order.getTotalOrdersForUser(userId, (err, totalOrders) => {
+            if (err) throw err;
 
-        connection.query(totalOrdersSQL, [userId], (err, result1) => {
-            const totalOrders = result1[0].totalOrders;
+            Order.getTotalSpentForUser(userId, (err2, totalSpentRaw) => {
+                if (err2) throw err2;
 
-            // ================= TOTAL SPENT =================
-            const totalSpentSQL = `
-                SELECT SUM(total) AS totalSpent
-                FROM orders
-                WHERE user_id = ?
-            `;
-
-            connection.query(totalSpentSQL, [userId], (err2, result2) => {
-                let totalSpent = Number(result2[0].totalSpent) || 0;  // ⭐ FIXED
+                const totalSpent = Number(totalSpentRaw) || 0;
 
                 // ================= LAST 5 VIEWED =================
                 const lastViewed = req.session.viewedProducts || [];
@@ -33,21 +21,12 @@ const dashboardController = {
                 }));
 
                 // ================= LAST 15 BOUGHT =================
-                const lastBoughtSQL = `
-                    SELECT p.productName, p.image, oi.quantity, oi.price
-                    FROM order_items oi
-                    JOIN products p ON p.id = oi.product_id
-                    JOIN orders o ON o.id = oi.order_id
-                    WHERE o.user_id = ?
-                    ORDER BY o.created_at DESC
-                    LIMIT 15
-                `;
-
-                connection.query(lastBoughtSQL, [userId], (err3, lastBought) => {
+                Order.getRecentItemsBought(userId, 15, (err3, lastBought) => {
+                    if (err3) throw err3;
 
                     const lastBoughtConverted = lastBought.map(item => ({
                         ...item,
-                        price: Number(item.price),   // ⭐ FIXED
+                        price: Number(item.price),
                         quantity: Number(item.quantity)
                     }));
 

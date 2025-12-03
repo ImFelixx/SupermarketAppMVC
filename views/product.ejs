@@ -90,7 +90,9 @@
             <% if (user.role === "admin") { %>
                 <div class="text-center mt-4">
                     <a href="/updateProduct/<%= product.id %>" class="btn btn-primary me-2">Edit Product</a>
-                    <a href="/deleteProduct/<%= product.id %>" class="btn btn-danger">Delete</a>
+                    <form action="/deleteProduct/<%= product.id %>" method="post" class="d-inline" onsubmit="return confirm('Delete this product?');">
+                        <button type="submit" class="btn btn-danger">Delete</button>
+                    </form>
                 </div>
             <% } %>
 

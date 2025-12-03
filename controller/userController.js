@@ -1,5 +1,5 @@
-const connection = require("../db");
 const crypto = require("crypto");
+const User = require("../models/user");
 
 const userController = {
 
@@ -29,27 +29,15 @@ const userController = {
             return res.redirect("/profile");
         }
 
-        // ❗ Check if email already exists for another user
-        const checkEmailSQL = `
-            SELECT id FROM users WHERE email = ? AND id != ?
-        `;
-
-        connection.query(checkEmailSQL, [email, userId], (err, result) => {
+        User.emailExistsForOtherUser(email, userId, (err, exists) => {
             if (err) throw err;
 
-            if (result.length > 0) {
+            if (exists) {
                 req.flash("error", "Email already exists. Please use another email.");
                 return res.redirect("/profile");
             }
 
-            // Update user details
-            const updateSQL = `
-                UPDATE users 
-                SET username = ?, email = ?, contact = ?, address = ?
-                WHERE id = ?
-            `;
-
-            connection.query(updateSQL, [username, email, contact, address, userId], (err2) => {
+            User.updateProfile(userId, { username, email, contact, address }, (err2) => {
                 if (err2) throw err2;
 
                 // Update session user
@@ -103,13 +91,8 @@ const userController = {
         const oldPwHashed = hash(old_password);
         const newPwHashed = hash(new_password);
 
-        // Get user's current password
-        const checkSQL = `SELECT password FROM users WHERE id = ?`;
-
-        connection.query(checkSQL, [userId], (err, result) => {
+        User.getPasswordHash(userId, (err, currentPassword) => {
             if (err) throw err;
-
-            const currentPassword = result[0].password;
 
             // ❗ Validate old password
             if (currentPassword !== oldPwHashed) {
@@ -123,10 +106,7 @@ const userController = {
                 return res.redirect("/password");
             }
 
-            // Update password
-            const updateSQL = `UPDATE users SET password = ? WHERE id = ?`;
-
-            connection.query(updateSQL, [newPwHashed, userId], (err2) => {
+            User.updatePassword(userId, new_password, (err2) => {
                 if (err2) throw err2;
 
                 req.flash("success", "Password updated successfully.");
