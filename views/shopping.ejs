@@ -118,7 +118,7 @@
 
                   <td>
                       <% if (product.quantity > 0) { %>
-                          <form action="/add-to-cart/<%= product.id %>" method="POST">
+                          <form action="/add-to-cart/<%= product.id %>" method="POST" class="add-to-cart-form">
                               <input type="hidden" id="hidden-qty-<%= product.id %>" name="quantity" value="1">
                               <button type="submit" class="btn btn-success">Add to Cart</button>
                           </form>
@@ -270,6 +270,20 @@ function toggleMiniCart() {
     popup.style.display = popup.style.display === "block" ? "none" : "block";
 }
 
+// Preserve scroll position after adding to cart so user returns to their previous spot
+document.addEventListener("DOMContentLoaded", () => {
+    const savedScroll = sessionStorage.getItem("shoppingScrollTop");
+    if (savedScroll) {
+        window.scrollTo(0, parseInt(savedScroll, 10));
+        sessionStorage.removeItem("shoppingScrollTop");
+    }
+
+    document.querySelectorAll(".add-to-cart-form").forEach(form => {
+        form.addEventListener("submit", () => {
+            sessionStorage.setItem("shoppingScrollTop", window.scrollY.toString());
+        });
+    });
+});
 </script>
 
 </body>

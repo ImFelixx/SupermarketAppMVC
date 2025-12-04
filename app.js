@@ -245,6 +245,18 @@ app.post("/remove-from-cart/:productId", checkAuthenticated, (req, res) => {
     });
 });
 
+app.post("/clear-cart", checkAuthenticated, (req, res) => {
+    Cart.clearCart(req.session.user.id, (err) => {
+        if (err) {
+            console.error('Error clearing cart:', err);
+            req.flash("error", "Failed to clear your cart.");
+        } else {
+            req.flash("success", "All items removed from your cart.");
+        }
+        res.redirect("/cart");
+    });
+});
+
 app.post("/update-cart/:productId", checkAuthenticated, (req, res) => {
     const productId = parseInt(req.params.productId, 10);
     let qty = parseInt(req.body.quantity, 10);
